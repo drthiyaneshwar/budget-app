@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Budget Planner</title>
+<style>
+:root{--navy:#1F3864;--sec:#D9E1F2;--tot:#F2F2F2;--line:#d0d7e2;--ok:#1e7b34;--bad:#b42318}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111;background:#f6f8fb}
+header{background:var(--navy);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header h1{font-size:16px;margin:0;flex:1}
+nav button{background:none;border:0;color:#fff;padding:6px 10px;cursor:pointer;font:inherit;border-bottom:2px solid transparent}
+nav button.active{border-bottom-color:#fff;font-weight:bold}
+.status{font-size:12px;color:#555}
+header .status{color:#dfe6f3}
+main{padding:14px;max-width:1150px;margin:auto}
+table{border-collapse:collapse;width:100%;background:#fff}
+th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+th{background:var(--navy);color:#fff;font-size:13px}
+td.n,th.n{text-align:right;white-space:nowrap}
+tr.tot td{background:var(--tot);font-weight:bold}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:6px;padding:10px}
+.kpi b{display:block;font-size:18px;margin-top:4px}
+.ok{color:var(--ok)}.bad{color:var(--bad)}
+input,select{font:inherit;padding:6px;border:1px solid #aab;border-radius:4px;width:100%;background:#fff}
+button.btn{font:inherit;padding:6px 12px;border:1px solid var(--navy);background:#fff;color:var(--navy);border-radius:4px;cursor:pointer}
+button.pri{background:var(--navy);color:#fff}
+button.del{border-color:var(--bad);color:var(--bad)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:14px}
+.card h2{font-size:15px;margin:0 0 10px;color:var(--navy)}
+.card h2 small{font-weight:normal;color:#555}
+.warn{border-color:var(--bad);color:var(--bad)}
+.grid-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end}
+.grid-form label{font-size:12px;color:#444;display:block;margin-bottom:3px}
+#lockBox{max-width:440px;margin:40px auto;background:#fff;border:1px solid var(--line);border-radius:8px;padding:20px}
+#lockBox h2{margin:0 0 6px;color:var(--navy)}
+.field{margin-bottom:10px}
+.field label{display:block;font-size:12px;color:#444;margin-bottom:3px}
+.msg{color:var(--bad);min-height:18px;margin-top:8px}
+.hide{display:none!important}
+dialog{border:1px solid var(--line);border-radius:8px;padding:16px;width:min(620px,94vw)}
+dialog::backdrop{background:rgba(0,0,0,.35)}
+details{margin-bottom:8px}
+details summary{cursor:pointer;padding:4px 0}
+.scroll{overflow-x:auto}
+@media (max-width:700px){th,td{font-size:12px;padding:4px}}
+</style>
+</head>
+<body>
+
+<section id="lockBox" class="hide">
+  <h2 id="lockTitle">Unlock</h2>
+  <p class="status" id="lockHint"></p>
+  <div id="setupFields" class="hide">
+    <div class="field"><label>GitHub username or organisation</label><input id="sOwner" autocomplete="off"></div>
+    <div class="field"><label>Private repository name (e.g. budget-data)</label><input id="sRepo" autocomplete="off"></div>
+    <div class="field"><label>Fine-grained access token (this repository only, Contents: read and write)</label><input id="sToken" type="password" autocomplete="off"></div>
+  </div>
+  <div class="field"><label>Passcode</label><input id="pass" type="password" autocomplete="new-password"></div>
+  <div class="field hide" id="confirmField"><label>Confirm passcode</label><input id="pass2" type="password" autocomplete="new-password"></div>
+  <div class="row"><button class="btn pri" id="lockBtn" onclick="lockAction()">Unlock</button></div>
+  <div class="msg" id="lockMsg"></div>
+</section>
+
+<div id="app" class="hide">
+  <header>
+    <h1>Budget Planner</h1>
+    <nav>
+      <button data-v="home" class="active">Home</button>
+      <button data-v="entries">Entries</button>
+      <button data-v="accounts">Accounts</button>
+      <button data-v="settings">Settings</button>
+    </nav>
+    <span class="status" id="status"></span>
+  </header>
+  <main>
+    <section id="v-home"></section>
+    <section id="v-entries" class="hide"></section>
+    <section id="v-accounts" class="hide"></section>
+    <section id="v-settings" class="hide"></section>
+  </main>
+</div>
+
+<dialog id="dlg"><form id="entryForm"></form></dialog>
+
+<script>
+/* ---------- constants ---------- */
+const LS = 'budgetPlannerCfg';
+const FILE = 'budget-data.json';
+const FREQS = ['Monthly', 'Quarterly', 'Yearly'];
+const ACC_TYPES = ['Income', 'Spending', 'Sinking', 'Savings'];
+
+const H = 'sec_household', P = 'sec_personal', M = 'sec_meds', I = 'sec_ins', A = 'sec_acad',
+      L = 'sec_life', E = 'sec_ent', X = 'sec_invexp', V = 'sec_sav';
+const SAL = 'acc_salary', HH = 'acc_household', PT = 'acc_sbipt', S2 = 'acc_sbi2', ICI = 'acc_icici',
+      SGE = 'acc_sge', IDFC = 'acc_idfc', AMZ = 'acc_amazon', CASH = 'acc_cash', COF = 'acc_coffee';
+
+const DEFAULT_SECTIONS = [
+  { id: H, name: 'Household', kind: 'expense' },
+  { id: P, name: 'Personal Care', kind: 'expense' },
+  { id: M, name: 'Medications', kind: 'expense' },
+  { id: I, name: 'Insurance', kind: 'expense' },
+  { id: A, name: 'Academics', kind: 'expense' },
+  { id: L, name: 'Lifestyle', kind: 'expense' },
+  { id: E, name: 'Entertainment', kind: 'expense' },
+  { id: X, name: 'Investment Expenses', kind: 'expense' },
+  { id: V, name: 'Savings & Investments', kind: 'savings' }
+];
+
+const DEFAULT_ACCOUNTS = [
+  { id: SAL, name: 'HDFC - Salary Account', role: 'Income landing account', type: 'Income' },
+  { id: HH, name: 'HDFC - Monthly Household', role: 'Everyday living costs', type: 'Spending' },
+  { id: PT, name: 'SBI PT (Monthly Autodebits)', role: 'Monthly autodebits', type: 'Spending' },
+  { id: S2, name: 'SBI 2 (confirm: same as SBI PT?)', role: 'Autodebits paid from SBI 2', type: 'Spending' },
+  { id: ICI, name: 'ICICI JB - Yearly Autodebits', role: 'Sinking fund for yearly costs', type: 'Sinking' },
+  { id: SGE, name: 'SBI SGE (Primary Savings)', role: 'Investments', type: 'Savings' },
+  { id: IDFC, name: 'IDFC - Family Emergency Fund', role: 'Emergency reserve', type: 'Savings' },
+  { id: AMZ, name: 'Amazon Wallet', role: 'Online spends', type: 'Spending' },
+  { id: CASH, name: 'For Cash Spends', role: 'Cash envelope', type: 'Spending' },
+  { id: COF, name: 'Coffee Can', role: 'Informal jar', type: 'Spending' }
+];
+
+const MP = 'Also listed in Medications: check double count';
+const MD = 'Also in Personal Care: check double count';
+// [section, item, amount, frequency, account, notes]  (from the Excel workbook)
+const SEED = [
+  [H,'Rent - Tamil Nadu',10000,'Monthly',HH,''],
+  [H,'Electricity - Tamil Nadu',50,'Monthly',HH,''],
+  [H,'Rent - Jabalpur',30000,'Monthly',HH,''],
+  [H,'Electricity - Jabalpur',2000,'Monthly',HH,''],
+  [H,'Groceries',10000,'Monthly',HH,''],
+  [H,'LPG',1000,'Monthly',HH,''],
+  [H,'Househelp / maid',2000,'Monthly',HH,''],
+  [H,'Cab',15600,'Monthly',HH,''],
+  [H,'Internet',800,'Monthly',HH,''],
+  [H,'Mobile recharge',1000,'Monthly',HH,''],
+  [H,'Toiletries and kitchen disposables',2000,'Monthly',HH,''],
+  [P,'Zincovit',375,'Monthly',HH,MP],
+  [P,'Fish oil',175,'Monthly',HH,MP],
+  [P,'Sunscreen',1400,'Monthly',HH,''],
+  [P,'Moisturizer',1000,'Monthly',HH,''],
+  [P,'Niacinamide HA serum',500,'Monthly',HH,''],
+  [P,'Lipoz VZ',750,'Monthly',HH,''],
+  [P,'Underarm roll-on',360,'Monthly',HH,''],
+  [P,'Perfume',1500,'Monthly',HH,''],
+  [P,'Grooming',500,'Monthly',HH,''],
+  [P,'Protein powder',3600,'Monthly',HH,MP],
+  [P,"Hershey's cocoa powder",300,'Monthly',HH,MP],
+  [P,'Almonds 200 g',200,'Monthly',HH,MP],
+  [P,'Walnuts 200 g',200,'Monthly',HH,MP],
+  [M,'Temla 40 mg (Amma)',200,'Monthly',HH,''],
+  [M,'Cilnidipine 5 mg (Amma)',150,'Monthly',HH,''],
+  [M,'Eltrox 50 mcg (Amma)',25,'Monthly',HH,''],
+  [M,'Fish oil',175,'Monthly',HH,MD],
+  [M,'Zincovit',375,'Monthly',HH,MD],
+  [M,'Protein powder',3600,'Monthly',HH,MD],
+  [M,"Hershey's cocoa powder",300,'Monthly',HH,MD],
+  [M,'Almonds 200 g',200,'Monthly',HH,MD],
+  [M,'Walnuts 200 g',200,'Monthly',HH,MD],
+  [M,'Sunscreen',1000,'Monthly',HH,''],
+  [M,'Moisturiser',500,'Monthly',HH,''],
+  [M,'Retinol',500,'Monthly',HH,''],
+  [M,'Luxury spends',2000,'Monthly',HH,''],
+  [M,'Thatha tablets',5000,'Monthly',HH,''],
+  [I,'Term insurance (Thiyanesh)',3631,'Monthly',PT,''],
+  [I,'Health insurance - Priya',20000,'Yearly',ICI,'Yearly premium'],
+  [I,'Health insurance - Thiyanesh',20000,'Yearly',ICI,'Yearly premium'],
+  [I,'Health insurance - Amma',65000,'Yearly',ICI,'Yearly premium'],
+  [I,'Indemnity - Thiyanesh',10267,'Yearly',ICI,'Yearly premium'],
+  [A,'Claude',2000,'Monthly',PT,'Your sheets also cite CC - SBI CB'],
+  [A,'Speechify',240,'Monthly',PT,''],
+  [A,'iCloud 200 GB',219,'Monthly',PT,''],
+  [A,'Radiogyan (3-monthly)',3000,'Quarterly',S2,''],
+  [A,'Notability',1500,'Yearly',ICI,''],
+  [A,'LinkedIn',6433,'Yearly',ICI,''],
+  [A,'Naukri Pro',2550,'Yearly',ICI,''],
+  [A,'e-Anatomy',6900,'Yearly',ICI,''],
+  [A,'RadSquad (Dr Ekta)',4000,'Yearly',ICI,''],
+  [A,'Telegram Premium',2400,'Yearly',S2,''],
+  [A,'iLovePDF',2400,'Yearly',S2,''],
+  [L,'Healthify Me',1500,'Yearly',ICI,''],
+  [L,'Strava',2500,'Yearly',ICI,''],
+  [L,'Amazon Prime',399,'Yearly',ICI,'Autodebit is ICICI Amazon Pay card'],
+  [E,'Netflix',199,'Monthly',S2,''],
+  [X,'Aionion US stocks',25000,'Yearly',S2,''],
+  [X,'Akshat Srivatsa YT channel',179,'Monthly',PT,'Your sheets also cite CC - SBI CB'],
+  [V,'Equity investing (Indian stocks)',25000,'Monthly',SGE,'Monthly plan'],
+  [V,'Gold (ETF / physical)',10000,'Monthly',SGE,'Monthly plan'],
+  [V,'US / FI',70000,'Monthly',SGE,'Monthly plan'],
+  [V,'Emergency fund',20000,'Monthly',IDFC,'Monthly plan']
+];
+
+/* ---------- state ---------- */
+let cfg = null;      // {owner, repo, salt(b64), tokenIv, tokenCt} stored in this browser
+let key = null;      // AES key, memory only
+let token = '';      // GitHub token, memory only
+let state = null;    // app data
+let dataSha = null;  // GitHub file sha for updates
+let saveTimer = null;
+let saveChain = Promise.resolve();
+let view = 'home';
+
+const $ = id => document.getElementById(id);
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+
+/* ---------- helpers ---------- */
+const uid = () => 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const sum = arr => arr.reduce((a, b) => a + b, 0);
+const inr = n => '₹' + Math.round(n).toLocaleString('en-IN');
+const fmt = n => (Math.abs(n) < 0.5 ? '-' : inr(n));
+const mEq = e => { const a = Number(e.amount) || 0; return e.frequency === 'Quarterly' ? a / 3 : e.frequency === 'Yearly' ? a / 12 : a; };
+const secName = id => (state.sections.find(s => s.id === id) || { name: '(removed heading)' }).name;
+const secKind = id => (state.sections.find(s => s.id === id) || {}).kind;
+const acctName = id => (state.accounts.find(a => a.id === id) || { name: '(account removed)' }).name;
+const usedBy = id => state.entries.filter(e => e.account === id).length;
+
+function setStatus(text, isErr) {
+  const s = $('status');
+  s.textContent = text;
+  s.style.color = isErr ? '#ffb4ab' : '';
+}
+
+function errMsg(e) {
+  if (typeof e === 'string') return e;
+  if (e && e.name === 'OperationError') return 'Wrong passcode, or the saved data could not be opened.';
+  return (e && e.message) || String(e);
+}
+
+/* ---------- encryption (passcode-based, AES-GCM) ---------- */
+function b64(buf) {
+  const b = new Uint8Array(buf);
+  let s = '';
+  for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+  return btoa(s);
+}
+function unb64(str) {
+  const s = atob(str.replace(/\s/g, ''));
+  const u = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+  return u;
+}
+async function deriveKey(pass, saltBytes) {
+  const base = await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: saltBytes, iterations: 250000, hash: 'SHA-256' },
+    base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function seal(text) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(text));
+  return { iv: b64(iv), ct: b64(ct) };
+}
+async function open(ivB64, ctB64) {
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(ivB64) }, key, unb64(ctB64));
+  return dec.decode(pt);
+}
+async function persistCfg() {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(token));
+  cfg.tokenIv = b64(iv);
+  cfg.tokenCt = b64(ct);
+  localStorage.setItem(LS, JSON.stringify(cfg));
+}
+async function wrap() {
+  const payload = await seal(JSON.stringify({ savedAt: new Date().toISOString(), data: state }));
+  return { v: 1, salt: cfg.salt, iv: payload.iv, ct: payload.ct };
+}
+async function unwrap(w) {
+  const txt = await open(w.iv, w.ct);
+  return JSON.parse(txt).data;
+}
+
+/* ---------- GitHub storage ---------- */
+function apiPath() {
+  return `/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/${FILE}`;
+}
+async function gh(method, body) {
+  const headers = { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+  if (body) headers['Content-Type'] = 'application/json';
+  const r = await fetch('https://api.github.com' + apiPath(), { method, headers, body: body ? JSON.stringify(body) : undefined });
+  if (method === 'GET' && r.status === 404) return null;
+  if (!r.ok) {
+    const t = await r.text();
+    const err = new Error(`GitHub ${r.status}: ${t.slice(0, 160)}`);
+    err.status = r.status;
+    throw err;
+  }
+  return r.json();
+}
+async function loadRemote() {
+  const j = await gh('GET');
+  if (!j) return null;
+  dataSha = j.sha;
+  return JSON.parse(new TextDecoder().decode(unb64(j.content)));
+}
+async function putRemote(wrapper) {
+  const content = b64(enc.encode(JSON.stringify(wrapper, null, 1)));
+  const body = { message: 'Budget update ' + new Date().toLocaleString('en-IN'), content };
+  try {
+    if (dataSha) body.sha = dataSha;
+    const j = await gh('PUT', body);
+    dataSha = j.content.sha;
+  } catch (e) {
+    if (e.status === 409 || e.status === 422) {
+      const cur = await gh('GET');
+      dataSha = cur ? cur.sha : null;
+      if (dataSha) body.sha = dataSha; else delete body.sha;
+      const j = await gh('PUT', body);
+      dataSha = j.content.sha;
+    } else throw e;
+  }
+}
+async function doSave() {
+  setStatus('Saving…');
+  await putRemote(await wrap());
+  setStatus('Saved to GitHub ' + new Date().toLocaleTimeString('en-IN'));
+}
+function queueSave() {
+  setStatus('Unsaved changes…');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    saveChain = saveChain.then(doSave).catch(e => setStatus('Save failed: ' + errMsg(e), true));
+  }, 400);
+}
+async function flush() {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    saveChain = saveChain.then(doSave).catch(e => setStatus('Save failed: ' + errMsg(e), true));
+  }
+  await saveChain;
+}
+window.addEventListener('beforeunload', e => { if (saveTimer) { e.preventDefault(); e.returnValue = ''; } });
+
+/* ---------- data ---------- */
+function seedState() {
+  return {
+    income: 270000,
+    buffer: 10000,
+    accounts: DEFAULT_ACCOUNTS.map(a => ({ ...a })),
+    sections: DEFAULT_SECTIONS.map(s => ({ ...s })),
+    entries: SEED.map((r, i) => ({ id: 's' + i, section: r[0], item: r[1], amount: r[2], frequency: r[3], account: r[4], notes: r[5] || '' }))
+  };
+}
+
+function computeAccounts() {
+  return state.accounts.map(a => {
+    const ents = state.entries.filter(e => e.account === a.id);
+    const isSav = e => secKind(e.section) === 'savings';
+    const expE = ents.filter(e => !isSav(e));
+    const savE = ents.filter(isSav);
+    const exp = sum(expE.map(mEq));
+    const yr = sum(expE.filter(e => e.frequency === 'Yearly').map(mEq));
+    const sav = sum(savE.map(mEq));
+    return { ...a, exp, yr, sav, total: exp + sav, yearly: sum(ents.map(e => mEq(e) * 12)) };
+  });
+}
+
+/* ---------- views ---------- */
+function renderView(v) {
+  ({ home: renderHome, entries: renderEntries, accounts: renderAccounts, settings: renderSettings })[v]();
+}
+function showView(v) {
+  view = v;
+  ['home', 'entries', 'accounts', 'settings'].forEach(n => {
+    $('v-' + n).classList.toggle('hide', n !== v);
+    document.querySelector(`nav button[data-v="${n}"]`).classList.toggle('active', n === v);
+  });
+  renderView(v);
+}
+function commit() {
+  renderView(view);
+  queueSave();
+}
+
+function renderHome() {
+  const accs = computeAccounts();
+  const total = sum(accs.map(a => a.total));
+  const left = state.income - total;
+  const ok = left >= state.buffer;
+  const orphan = state.entries.filter(e => !state.accounts.some(a => a.id === e.account)).length;
+  const secRows = state.sections.map(s => {
+    const ents = state.entries.filter(e => e.section === s.id);
+    const m = sum(ents.map(mEq));
+    return `<tr><td>${esc(s.name)}</td><td class=n>${ents.length}</td><td class=n>${fmt(m)}</td><td class=n>${fmt(m * 12)}</td></tr>`;
+  }).join('');
+  const detail = accs.filter(a => a.total > 0).map(a => {
+    const rows = state.entries.filter(e => e.account === a.id).map(e =>
+      `<tr><td>${esc(secName(e.section))}</td><td>${esc(e.item)}</td><td>${e.frequency}</td><td class=n>${fmt(mEq(e))}</td></tr>`).join('');
+    return `<details><summary><b>${esc(a.name)}</b> &mdash; ${fmt(a.total)} /mo</summary>
+      <div class=scroll><table><thead><tr><th>Heading</th><th>Subheading</th><th>Frequency</th><th class=n>Monthly</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
+  }).join('') || '<p class=status>No transfers yet.</p>';
+
+  $('v-home').innerHTML = `
+    <div class=kpis>
+      <div class=kpi>Monthly income<b>${inr(state.income)}</b></div>
+      <div class=kpi>Total to transfer per month<b>${inr(total)}</b></div>
+      <div class=kpi>Left in HDFC Salary<b class="${ok ? 'ok' : 'bad'}">${inr(left)}</b></div>
+      <div class=kpi>Buffer check (min ${inr(state.buffer)})<b class="${ok ? 'ok' : 'bad'}">${ok ? 'OK' : 'Short'}</b></div>
+    </div>
+    ${orphan ? `<div class="card warn">${orphan} entries use an account that no longer exists. Open Entries and pick a landing account.</div>` : ''}
+    <div class=card>
+      <h2>Monthly transfers per account</h2>
+      <div class=scroll><table>
+        <thead><tr><th>Account</th><th class=n>Expenses /mo</th><th class=n>of which yearly /mo</th><th class=n>Savings /mo</th><th class=n>Total to receive /mo</th><th class=n>Yearly routed /yr</th></tr></thead>
+        <tbody>
+          ${accs.map(a => `<tr><td>${esc(a.name)}</td><td class=n>${fmt(a.exp)}</td><td class=n>${fmt(a.yr)}</td><td class=n>${fmt(a.sav)}</td><td class=n><b>${fmt(a.total)}</b></td><td class=n>${fmt(a.yearly)}</td></tr>`).join('')}
+          <tr class=tot><td>Total</td><td class=n>${fmt(sum(accs.map(a => a.exp)))}</td><td class=n>${fmt(sum(accs.map(a => a.yr)))}</td><td class=n>${fmt(sum(accs.map(a => a.sav)))}</td><td class=n>${fmt(total)}</td><td class=n>${fmt(sum(accs.map(a => a.yearly)))}</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class=card><h2>What goes into each account</h2>${detail}</div>
+    <div class=card>
+      <h2>Summary by heading</h2>
+      <div class=scroll><table>
+        <thead><tr><th>Heading</th><th class=n>Items</th><th class=n>Monthly</th><th class=n>Yearly</th></tr></thead>
+        <tbody>${secRows}</tbody>
+      </table></div>
+    </div>`;
+}
+
+function renderEntries() {
+  const blocks = state.sections.map(s => {
+    const ents = state.entries.filter(e => e.section === s.id);
+    const m = sum(ents.map(mEq));
+    const rows = ents.map(e => `<tr>
+        <td>${esc(e.item)}</td><td class=n>${inr(e.amount)}</td><td>${e.frequency}</td>
+        <td class=n>${fmt(mEq(e))}</td><td class=n>${fmt(mEq(e) * 12)}</td>
+        <td>${esc(acctName(e.account))}</td><td>${esc(e.notes)}</td>
+        <td><button class=btn onclick="openEntry('${e.id}')">Edit</button> <button class="btn del" onclick="delEntry('${e.id}')">Delete</button></td>
+      </tr>`).join('');
+    return `<div class=card>
+      <h2>${esc(s.name)} <small>&mdash; ${fmt(m)} /mo &middot; ${fmt(m * 12)} /yr</small></h2>
+      ${ents.length ? `<div class=scroll><table>
+        <thead><tr><th>Subheading (item)</th><th class=n>Amount</th><th>Frequency</th><th class=n>Monthly</th><th class=n>Yearly</th><th>Landing account</th><th>Notes</th><th></th></tr></thead>
+        <tbody>${rows}</tbody></table></div>` : '<p class=status>No entries yet.</p>'}
+      <div class=row style="margin-top:8px"><button class=btn onclick="openEntry(null,'${s.id}')">+ Add to ${esc(s.name)}</button></div>
+    </div>`;
+  }).join('');
+  $('v-entries').innerHTML = `<div class=row style="margin-bottom:10px"><button class="btn pri" onclick="openEntry()">+ New entry</button>
+    <span class=status>Changes save to GitHub automatically.</span></div>${blocks}`;
+}
+
+function renderAccounts() {
+  const rows = state.accounts.map(a => `<tr>
+      <td><input value="${esc(a.name)}" onchange="updAcc('${a.id}','name',this.value)"></td>
+      <td><input value="${esc(a.role)}" onchange="updAcc('${a.id}','role',this.value)"></td>
+      <td><select onchange="updAcc('${a.id}','type',this.value)">${ACC_TYPES.map(t => `<option ${t === a.type ? 'selected' : ''}>${t}</option>`).join('')}</select></td>
+      <td class=n>${usedBy(a.id)}</td>
+      <td><button class="btn del" onclick="delAcc('${a.id}')">Delete</button></td>
+    </tr>`).join('');
+  $('v-accounts').innerHTML = `<div class=card>
+    <h2>Accounts</h2>
+    <p class=status>Renaming an account updates every entry and page. Entries link to accounts by ID, so renaming is safe.</p>
+    <div class=row style="margin-bottom:8px"><button class=btn onclick="addAcc()">+ Add account</button></div>
+    <div class=scroll><table>
+      <thead><tr><th>Account name</th><th>Role</th><th>Type</th><th class=n>Entries</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div></div>`;
+}
+
+function renderSettings() {
+  const secRows = state.sections.map(s => `<tr>
+      <td><input value="${esc(s.name)}" onchange="updSec('${s.id}','name',this.value)"></td>
+      <td><select onchange="updSec('${s.id}','kind',this.value)">
+        <option value=expense ${s.kind === 'expense' ? 'selected' : ''}>Expense</option>
+        <option value=savings ${s.kind === 'savings' ? 'selected' : ''}>Savings</option></select></td>
+      <td class=n>${state.entries.filter(e => e.section === s.id).length}</td>
+      <td><button class="btn del" onclick="delSec('${s.id}')">Delete</button></td>
+    </tr>`).join('');
+  $('v-settings').innerHTML = `
+    <div class=card>
+      <h2>Monthly figures</h2>
+      <div class=grid-form>
+        <div><label>Monthly income into HDFC Salary (₹)</label><input type=number value="${state.income}" onchange="updSetting('income',this.value)"></div>
+        <div><label>Minimum buffer to keep in salary (₹)</label><input type=number value="${state.buffer}" onchange="updSetting('buffer',this.value)"></div>
+      </div>
+    </div>
+    <div class=card>
+      <h2>Headings (sections)</h2>
+      <div class=scroll><table>
+        <thead><tr><th>Heading</th><th>Type</th><th class=n>Entries</th><th></th></tr></thead>
+        <tbody>${secRows}</tbody>
+      </table></div>
+      <div class=row style="margin-top:8px"><button class=btn onclick="addSec()">+ Add heading</button></div>
+    </div>
+    <div class=card>
+      <h2>Data and security</h2>
+      <p>Data repository: <b>${esc(cfg.owner)}/${esc(cfg.repo)}</b> (private). Every change is committed, so the repository history is your backup.</p>
+      <div class=row>
+        <button class=btn onclick="exportBackup()">Download encrypted backup</button>
+        <button class=btn onclick="changePasscode()">Change passcode</button>
+        <button class=btn onclick="lockNow()">Lock now</button>
+        <button class="btn del" onclick="resetDevice()">Forget this device</button>
+      </div>
+      <p class=status>Changing the passcode means you must forget this device on your other devices and sign in again.</p>
+    </div>`;
+}
+
+/* ---------- entries (dialog) ---------- */
+function openEntry(id, secId) {
+  const e = id ? state.entries.find(x => x.id === id) : {
+    section: secId || state.sections[0].id, item: '', amount: '', frequency: 'Monthly',
+    account: state.accounts[0] ? state.accounts[0].id : '', notes: ''
+  };
+  const f = $('entryForm');
+  f.innerHTML = `
+    <h2 style="margin-top:0;color:var(--navy)">${id ? 'Edit entry' : 'New entry'}</h2>
+    <input type=hidden id=eId value="${esc(id || '')}">
+    <div class=grid-form>
+      <div><label>Heading (section)</label><select id=eSec>${state.sections.map(s => `<option value="${s.id}" ${s.id === e.section ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></div>
+      <div><label>Subheading (item)</label><input id=eItem required value="${esc(e.item)}"></div>
+      <div><label>Amount (₹)</label><input id=eAmt type=number min=0 step=1 required value="${esc(e.amount)}"></div>
+      <div><label>Frequency</label><select id=eFreq>${FREQS.map(q => `<option ${q === e.frequency ? 'selected' : ''}>${q}</option>`).join('')}</select></div>
+      <div><label>Landing account</label><select id=eAcc>${state.accounts.map(a => `<option value="${a.id}" ${a.id === e.account ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></div>
+      <div><label>Notes</label><input id=eNotes value="${esc(e.notes || '')}"></div>
+    </div>
+    <div class=row style="margin-top:14px;justify-content:flex-end">
+      <button type=button class=btn onclick="closeDlg()">Cancel</button>
+      <button class="btn pri" type=submit>Save</button>
+    </div>`;
+  f.onsubmit = saveEntryForm;
+  $('dlg').showModal();
+}
+function closeDlg() { $('dlg').close(); }
+function saveEntryForm(ev) {
+  ev.preventDefault();
+  const id = $('eId').value;
+  const data = {
+    section: $('eSec').value,
+    item: $('eItem').value.trim(),
+    amount: Number($('eAmt').value) || 0,
+    frequency: $('eFreq').value,
+    account: $('eAcc').value,
+    notes: $('eNotes').value.trim()
+  };
+  if (!data.item) return false;
+  if (id) Object.assign(state.entries.find(x => x.id === id), data);
+  else state.entries.push({ id: uid(), ...data });
+  closeDlg();
+  commit();
+  return false;
+}
+function delEntry(id) {
+  const e = state.entries.find(x => x.id === id);
+  if (!e || !confirm(`Delete "${e.item}"?`)) return;
+  state.entries = state.entries.filter(x => x.id !== id);
+  commit();
+}
+
+/* ---------- accounts / headings / settings ---------- */
+function updAcc(id, field, val) {
+  state.accounts.find(a => a.id === id)[field] = val;
+  commit();
+}
+function addAcc() {
+  state.accounts.push({ id: uid(), name: 'New account', role: '', type: 'Spending' });
+  commit();
+}
+function delAcc(id) {
+  const n = usedBy(id);
+  if (n) { alert(`${n} entries use this account. Change their landing account first.`); return; }
+  if (!confirm('Delete this account?')) return;
+  state.accounts = state.accounts.filter(a => a.id !== id);
+  commit();
+}
+function updSec(id, field, val) {
+  state.sections.find(s => s.id === id)[field] = val;
+  commit();
+}
+function addSec() {
+  state.sections.push({ id: uid(), name: 'New heading', kind: 'expense' });
+  commit();
+}
+function delSec(id) {
+  if (state.entries.some(e => e.section === id)) { alert('Move or delete this heading\'s entries first.'); return; }
+  if (!confirm('Delete this heading?')) return;
+  state.sections = state.sections.filter(s => s.id !== id);
+  commit();
+}
+function updSetting(k, v) {
+  state[k] = Number(v) || 0;
+  commit();
+}
+
+async function exportBackup() {
+  const w = await wrap();
+  const blob = new Blob([JSON.stringify(w, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `budget-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+}
+async function changePasscode() {
+  const p = prompt('New passcode (at least 6 characters)');
+  if (!p) return;
+  if (p.length < 6) { alert('Passcode must be at least 6 characters.'); return; }
+  if (prompt('Type the new passcode again') !== p) { alert('Passcodes do not match.'); return; }
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  cfg.salt = b64(salt);
+  key = await deriveKey(p, salt);
+  await persistCfg();
+  queueSave();
+  await flush();
+  alert('Passcode changed.');
+}
+async function lockNow() {
+  await flush();
+  key = null;
+  token = '';
+  state = null;
+  dataSha = null;
+  showLock();
+}
+function resetDevice() {
+  if (!confirm('Forget this device? Your data stays in GitHub. You will need your token and passcode to sign in again.')) return;
+  localStorage.removeItem(LS);
+  location.reload();
+}
+
+/* ---------- lock screen: setup and unlock ---------- */
+function showLock() {
+  $('app').classList.add('hide');
+  $('lockBox').classList.remove('hide');
+  const setup = !cfg;
+  $('setupFields').classList.toggle('hide', !setup);
+  $('confirmField').classList.toggle('hide', !setup);
+  $('lockTitle').textContent = setup ? 'Set up your budget' : 'Unlock';
+  $('lockBtn').textContent = setup ? 'Connect and open' : 'Unlock';
+  $('lockHint').textContent = setup
+    ? 'Connects to your private GitHub repository. Your token is stored encrypted in this browser, using your passcode.'
+    : 'Enter your passcode to open your budget.';
+  $('pass').value = '';
+  $('pass2').value = '';
+  $('lockMsg').textContent = '';
+}
+function enterApp() {
+  $('lockBox').classList.add('hide');
+  $('app').classList.remove('hide');
+  showView('home');
+  setStatus('Loaded from GitHub');
+}
+
+async function setupFlow() {
+  const owner = $('sOwner').value.trim();
+  const repo = $('sRepo').value.trim();
+  const tok = $('sToken').value.trim();
+  const p = $('pass').value;
+  if (!owner || !repo || !tok) throw 'Enter your GitHub username, repository name and token.';
+  if (p.length < 6) throw 'Passcode must be at least 6 characters.';
+  if (p !== $('pass2').value) throw 'Passcodes do not match.';
+
+  cfg = { owner, repo, salt: '' };
+  token = tok;
+  const remote = await loadRemote();
+  if (remote) {
+    cfg.salt = remote.salt;
+    key = await deriveKey(p, unb64(remote.salt));
+    state = await unwrap(remote);
+  } else {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    cfg.salt = b64(salt);
+    key = await deriveKey(p, salt);
+    state = seedState();
+    await putRemote(await wrap());
+  }
+  await persistCfg();
+  enterApp();
+}
+
+async function unlockFlow() {
+  const p = $('pass').value;
+  if (!p) throw 'Enter your passcode.';
+  key = await deriveKey(p, unb64(cfg.salt));
+  try {
+    token = dec.decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(cfg.tokenIv) }, key, unb64(cfg.tokenCt)));
+  } catch (e) {
+    key = null;
+    throw 'Wrong passcode.';
+  }
+  const remote = await loadRemote();
+  if (remote) {
+    state = await unwrap(remote);
+  } else {
+    state = seedState();
+    await putRemote(await wrap());
+  }
+  enterApp();
+}
+
+async function lockAction() {
+  $('lockMsg').textContent = '';
+  $('lockBtn').disabled = true;
+  try {
+    if (!cfg) await setupFlow();
+    else await unlockFlow();
+  } catch (e) {
+    $('lockMsg').textContent = errMsg(e);
+  } finally {
+    $('lockBtn').disabled = false;
+  }
+}
+
+/* ---------- startup ---------- */
+document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => showView(b.dataset.v)));
+cfg = JSON.parse(localStorage.getItem(LS) || 'null');
+showLock();
+</script>
+</body>
+</html>
