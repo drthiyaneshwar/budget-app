@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Budget Planner</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#1F3864">
 <style>
 :root{--navy:#1F3864;--sec:#D9E1F2;--tot:#F2F2F2;--line:#d0d7e2;--ok:#1e7b34;--bad:#b42318}
 *{box-sizing:border-box}
@@ -82,6 +86,7 @@ details summary{cursor:pointer;padding:4px 0}
     <section id="v-accounts" class="hide"></section>
     <section id="v-settings" class="hide"></section>
   </main>
+  <footer class="status" id="footer" style="padding:8px 16px"></footer>
 </div>
 
 <dialog id="dlg"><form id="entryForm"></form></dialog>
@@ -89,6 +94,9 @@ details summary{cursor:pointer;padding:4px 0}
 <script>
 /* ---------- constants ---------- */
 const LS = 'budgetPlannerCfg';
+const APP_VERSION = '1.1.0';
+const CACHE_KEY = 'budgetCache';
+const PENDING_KEY = 'budgetPending';
 const FILE = 'budget-data.json';
 const FREQS = ['Monthly', 'Quarterly', 'Yearly'];
 const ACC_TYPES = ['Income', 'Spending', 'Sinking', 'Savings'];
@@ -202,6 +210,7 @@ let dataSha = null;  // GitHub file sha for updates
 let saveTimer = null;
 let saveChain = Promise.resolve();
 let view = 'home';
+let pending = false;   // true when local changes are not yet saved to GitHub
 
 const $ = id => document.getElementById(id);
 const enc = new TextEncoder();
@@ -316,9 +325,25 @@ async function putRemote(wrapper) {
   }
 }
 async function doSave() {
+  if (!navigator.onLine) {
+    setStatus('Offline: saved on this device, will sync when back online');
+    updateFooter();
+    return;
+  }
   setStatus('Saving…');
-  await putRemote(await wrap());
-  setStatus('Saved to GitHub ' + new Date().toLocaleTimeString('en-IN'));
+  try {
+    await putRemote(await wrap());
+    pending = false;
+    localStorage.removeItem(PENDING_KEY);
+    setStatus('Saved to GitHub ' + new Date().toLocaleTimeString('en-IN'));
+  } catch (e) {
+    if (e instanceof TypeError) {
+      setStatus('Offline: saved on this device, will sync when back online');
+    } else {
+      throw e;
+    }
+  }
+  updateFooter();
 }
 function queueSave() {
   setStatus('Unsaved changes…');
@@ -336,7 +361,9 @@ async function flush() {
   }
   await saveChain;
 }
-window.addEventListener('beforeunload', e => { if (saveTimer) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', e => { if (saveTimer || pending) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('online', () => { updateFooter(); if (pending) queueSave(); });
+window.addEventListener('offline', updateFooter);
 
 /* ---------- data ---------- */
 function seedState() {
@@ -376,7 +403,21 @@ function showView(v) {
 }
 function commit() {
   renderView(view);
+  markChanged();
+}
+function markChanged() {
+  pending = true;
+  localStorage.setItem(PENDING_KEY, '1');
+  writeCache();
   queueSave();
+  updateFooter();
+}
+async function writeCache() {
+  if (!key || !state || !cfg) return;
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(await wrap())); } catch (e) { /* ignore */ }
+}
+function updateFooter() {
+  $('footer').textContent = `Version ${APP_VERSION} · ${navigator.onLine ? 'Online' : 'Offline'}${pending ? ' · changes not yet synced' : ''}`;
 }
 
 function renderHome() {
@@ -492,6 +533,7 @@ function renderSettings() {
     </div>
     <div class=card>
       <h2>Data and security</h2>
+      <p class=status>App version ${APP_VERSION}</p>
       <p>Data repository: <b>${esc(cfg.owner)}/${esc(cfg.repo)}</b> (private). Every change is committed, so the repository history is your backup.</p>
       <div class=row>
         <button class=btn onclick="exportBackup()">Download encrypted backup</button>
@@ -606,6 +648,7 @@ async function changePasscode() {
   cfg.salt = b64(salt);
   key = await deriveKey(p, salt);
   await persistCfg();
+  await writeCache();
   queueSave();
   await flush();
   alert('Passcode changed.');
@@ -619,8 +662,11 @@ async function lockNow() {
   showLock();
 }
 function resetDevice() {
+  if (pending && !confirm('Some changes are not synced yet. They will be lost if you forget this device. Continue?')) return;
   if (!confirm('Forget this device? Your data stays in GitHub. You will need your token and passcode to sign in again.')) return;
   localStorage.removeItem(LS);
+  localStorage.removeItem(CACHE_KEY);
+  localStorage.removeItem(PENDING_KEY);
   location.reload();
 }
 
@@ -644,7 +690,8 @@ function enterApp() {
   $('lockBox').classList.add('hide');
   $('app').classList.remove('hide');
   showView('home');
-  setStatus('Loaded from GitHub');
+  setStatus(navigator.onLine ? 'Loaded from GitHub' : 'Offline: using saved copy');
+  updateFooter();
 }
 
 async function setupFlow() {
@@ -671,6 +718,9 @@ async function setupFlow() {
     await putRemote(await wrap());
   }
   await persistCfg();
+  pending = false;
+  localStorage.removeItem(PENDING_KEY);
+  await writeCache();
   enterApp();
 }
 
@@ -684,14 +734,36 @@ async function unlockFlow() {
     key = null;
     throw 'Wrong passcode.';
   }
-  const remote = await loadRemote();
-  if (remote) {
-    state = await unwrap(remote);
+  let remote = null;
+  let offline = false;
+  try {
+    remote = await loadRemote();
+  } catch (e) {
+    if (!(e instanceof TypeError)) throw e;
+    offline = true;
+  }
+  const cached = localStorage.getItem(CACHE_KEY);
+  const hadPending = localStorage.getItem(PENDING_KEY) === '1';
+  if (offline) {
+    if (!cached) throw 'No internet connection and no saved copy on this device yet.';
+    state = await unwrap(JSON.parse(cached));
+    pending = hadPending;
+  } else if (remote) {
+    if (hadPending && cached) {
+      state = await unwrap(JSON.parse(cached));
+      pending = true;
+    } else {
+      state = await unwrap(remote);
+      pending = false;
+      localStorage.removeItem(PENDING_KEY);
+    }
   } else {
     state = seedState();
-    await putRemote(await wrap());
+    pending = true;
   }
+  await writeCache();
   enterApp();
+  if (pending && !offline) queueSave();
 }
 
 async function lockAction() {
@@ -711,6 +783,9 @@ async function lockAction() {
 document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => showView(b.dataset.v)));
 cfg = JSON.parse(localStorage.getItem(LS) || 'null');
 showLock();
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
 </script>
 </body>
 </html>

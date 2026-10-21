@@ -1,0 +1,48 @@
+name: Check and publish app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check required files exist
+        run: |
+          test -f index.html
+          test -f sw.js
+          test -f manifest.json
+          test -f icon-192.png
+          test -f icon-512.png
+      - name: Check app JavaScript for syntax errors
+        run: |
+          python3 -c "import re; h=open('index.html',encoding='utf-8').read(); m=re.search(r'<script>(.*)</script>', h, re.S); open('app.js','w',encoding='utf-8').write(m.group(1))"
+          node --check app.js
+          node --check sw.js
+
+  deploy:
+    needs: check
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deployment
+        uses: actions/deploy-pages@v4
