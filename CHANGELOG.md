@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.0 - 2026-11-02
+
+- Home now lists how much to transfer to each account this month, directly under the key figures.
+
 ## 1.1.0 - 2026-11-02
 
 Offline support and installing as an app.
