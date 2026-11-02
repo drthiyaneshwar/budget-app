@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.0 - 2026-11-02
+
+- New look across the app, with softer cards, clearer type and icons in the navigation.
+- Dark mode that follows your device setting.
+- Home shows where your income goes, with a bar and percentages, and each transfer shows the account's role.
+
 ## 1.3.0 - 2026-11-02
 
 - Headings can now be added and edited directly on the Entries page.
