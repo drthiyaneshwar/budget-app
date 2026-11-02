@@ -1,0 +1,1110 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self'; connect-src https://api.github.com; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#1F3864">
+<title>Budget Planner</title>
+<style>
+:root {
+  --navy: #1F3864;
+  --navy-soft: #E8EDF6;
+  --bg: #F4F6FA;
+  --card: #FFFFFF;
+  --text: #1B2433;
+  --muted: #5D6A7E;
+  --line: #DDE3EC;
+  --good: #1B7A4B;
+  --good-bg: #E5F4EC;
+  --bad: #B3261E;
+  --bad-bg: #FBEAE9;
+  --warn-bg: #FFF4DC;
+  --warn: #7A5300;
+  --radius: 10px;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+h1, h2, h3 { line-height: 1.25; margin: 0; }
+h2 { font-size: 1.35rem; }
+h3 { font-size: 1.05rem; }
+p { margin: 0 0 .75rem; }
+button, input, select, textarea { font: inherit; color: inherit; }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.muted { color: var(--muted); }
+.small { font-size: .875rem; }
+
+/* Sign-in screens */
+.gate { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+.gate-box { width: 100%; max-width: 420px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
+.gate-box h1 { font-size: 1.4rem; color: var(--navy); margin-bottom: 6px; }
+
+/* Forms */
+label { display: block; font-size: .875rem; font-weight: 600; margin-bottom: 12px; }
+label .hint { display: block; font-weight: 400; color: var(--muted); }
+input, select, textarea { display: block; width: 100%; margin-top: 4px; padding: 9px 10px; min-height: 42px; background: #fff; border: 1px solid #B9C3D2; border-radius: 7px; font-weight: 400; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--navy); outline-offset: 1px; }
+.btn { display: inline-block; min-height: 42px; padding: 9px 14px; background: #fff; border: 1px solid #B9C3D2; border-radius: 7px; cursor: pointer; font-weight: 600; }
+.btn:hover { background: var(--navy-soft); }
+.btn.primary { background: var(--navy); border-color: var(--navy); color: #fff; }
+.btn.primary:hover { background: #162A4D; }
+.btn.danger { color: var(--bad); border-color: #E2B3B0; }
+.btn.danger:hover { background: var(--bad-bg); }
+.btn.link { background: none; border: 0; color: var(--navy); text-decoration: underline; padding: 6px 2px; font-weight: 500; }
+.btn.block { display: block; width: 100%; }
+.btn:disabled { opacity: .6; cursor: default; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.error { color: var(--bad); font-size: .875rem; min-height: 1.3em; margin: 0 0 8px; }
+
+/* App frame */
+.topbar { background: var(--navy); color: #fff; position: sticky; top: 0; z-index: 5; }
+.topbar-in { max-width: 1040px; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; gap: 24px; min-height: 56px; }
+.brand { font-weight: 700; font-size: 1.05rem; }
+.tabs { display: flex; gap: 4px; }
+.tab { background: none; border: 0; color: #D5DEEE; padding: 8px 12px; border-radius: 7px; cursor: pointer; font-weight: 600; }
+.tab:hover { color: #fff; }
+.tab[aria-current="page"] { background: rgba(255, 255, 255, .16); color: #fff; }
+.tab:focus-visible { outline-color: #fff; }
+main { max-width: 1040px; margin: 0 auto; padding: 20px 16px; }
+.page-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+.foot { max-width: 1040px; margin: 0 auto; padding: 4px 16px 24px; color: var(--muted); font-size: .8125rem; }
+
+/* Cards and figures */
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+.kpi { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; min-width: 0; }
+.kpi-label { font-size: .8125rem; color: var(--muted); }
+.kpi-value { font-size: 1.45rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.kpi.good .kpi-value { color: var(--good); }
+.kpi.bad .kpi-value { color: var(--bad); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 18px; overflow: hidden; }
+.card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.card-body { padding: 14px; }
+.subtotals { color: var(--muted); font-size: .875rem; font-variant-numeric: tabular-nums; }
+.notice { padding: 10px 14px; border-radius: var(--radius); margin-bottom: 14px; background: var(--warn-bg); color: var(--warn); }
+.empty { padding: 18px 14px; color: var(--muted); margin: 0; }
+
+/* Tables */
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font-size: .8125rem; color: var(--muted); font-weight: 600; background: #FAFBFD; }
+th.num { text-align: right; white-space: normal; }
+tfoot td { font-weight: 700; background: #FAFBFD; border-bottom: 0; }
+tbody tr:last-child td { border-bottom: 0; }
+.transfers { min-width: 760px; }
+.transfers th:first-child, .transfers td:first-child { position: sticky; left: 0; background: var(--card); min-width: 190px; max-width: 240px; }
+.transfers th:first-child, .transfers tfoot td:first-child { background: #FAFBFD; }
+.expander { background: none; border: 0; padding: 4px 0; cursor: pointer; text-align: left; font-weight: 600; color: var(--navy); }
+.expander::before { content: "\25B8"; display: inline-block; width: 1.1em; }
+.expander[aria-expanded="true"]::before { content: "\25BE"; }
+.detail td { background: var(--navy-soft); padding: 8px 12px; }
+.transfers .detail td { position: static; max-width: none; }
+.detail ul { list-style: none; margin: 0; padding: 0; position: sticky; left: 12px; max-width: min(640px, calc(100vw - 58px)); }
+.detail li { display: flex; justify-content: space-between; gap: 16px; padding: 3px 0; font-size: .875rem; }
+.notes { color: var(--muted); font-size: .875rem; }
+.actions { white-space: nowrap; text-align: right; }
+.actions .btn { min-height: 36px; padding: 5px 10px; font-size: .875rem; font-weight: 500; }
+.edit-table input, .edit-table select { margin-top: 0; }
+
+/* Dialogs */
+dialog { border: 0; border-radius: var(--radius); padding: 20px; width: calc(100% - 32px); max-width: 460px; color: var(--text); box-shadow: 0 12px 40px rgba(15, 25, 45, .3); }
+dialog::backdrop { background: rgba(15, 25, 45, .5); }
+dialog h3 { margin-bottom: 12px; }
+.dlg-foot { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); max-width: calc(100% - 32px); width: max-content; padding: 10px 14px; border-radius: 8px; background: #1B2433; color: #fff; z-index: 20; font-size: .9rem; }
+.toast.bad { background: var(--bad); }
+
+@media (max-width: 760px) {
+  .topbar-in { gap: 0; }
+  .tabs { position: fixed; left: 0; right: 0; bottom: 0; background: var(--navy); padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); justify-content: space-around; z-index: 6; }
+  .tab { flex: 1; padding: 9px 2px; font-size: .875rem; }
+  main { padding-bottom: 12px; }
+  .foot { padding-bottom: 84px; }
+  .toast { bottom: 76px; }
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+  .kpi-value { font-size: 1.2rem; }
+
+  /* Entry and editor tables become stacked rows */
+  .stack thead { display: none; }
+  .stack, .stack tbody, .stack tr, .stack td { display: block; width: 100%; }
+  .stack tr { padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  .stack tbody tr:last-child { border-bottom: 0; }
+  .stack td { border: 0; padding: 3px 0; }
+  .stack td[data-label] { display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: right; }
+  .stack td[data-label]::before { content: attr(data-label); color: var(--muted); font-size: .875rem; text-align: left; flex: none; }
+  .stack td.title { font-weight: 600; }
+  .stack td.notes:empty { display: none; }
+  .stack td.actions { text-align: left; padding-top: 6px; }
+  .edit-table td[data-label] input, .edit-table td[data-label] select { flex: 1; min-width: 0; }
+}
+</style>
+</head>
+<body>
+
+<section id="screen-setup" class="gate" hidden>
+  <div class="gate-box">
+    <h1>Set up Budget Planner</h1>
+    <p class="muted small">Your budget is encrypted in this browser and saved to your private GitHub repository.</p>
+    <form id="setup-form" novalidate>
+      <label>GitHub username
+        <input id="s-owner" autocomplete="off" autocapitalize="none" spellcheck="false" required>
+      </label>
+      <label>Private repository name
+        <input id="s-repo" value="budget-data" autocomplete="off" autocapitalize="none" spellcheck="false" required>
+      </label>
+      <label>Fine-grained token
+        <span class="hint">Needs Contents read and write on this repository only.</span>
+        <input id="s-token" type="password" autocomplete="off" spellcheck="false" required>
+      </label>
+      <label>Passcode
+        <span class="hint">At least 6 characters. It cannot be recovered if you forget it.</span>
+        <input id="s-pass" type="password" autocomplete="new-password" required>
+      </label>
+      <label>Confirm passcode
+        <input id="s-pass2" type="password" autocomplete="new-password" required>
+      </label>
+      <p class="error" id="setup-error" role="alert"></p>
+      <button class="btn primary block" id="setup-btn">Continue</button>
+    </form>
+    <div id="setup-start" hidden>
+      <h3>No budget found yet</h3>
+      <p class="muted small">This repository has no data file. Choose your starting data file, or start with an empty budget.</p>
+      <label>Starting data file
+        <input id="s-file" type="file" accept=".json,application/json">
+      </label>
+      <p class="error" id="start-error" role="alert"></p>
+      <div class="btn-row">
+        <button class="btn primary" id="start-file">Use this file</button>
+        <button class="btn" id="start-empty">Start empty</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="screen-unlock" class="gate" hidden>
+  <div class="gate-box">
+    <h1>Budget Planner</h1>
+    <p class="muted small">Enter your passcode to unlock.</p>
+    <form id="unlock-form" novalidate>
+      <label>Passcode
+        <input id="u-pass" type="password" autocomplete="current-password" required>
+      </label>
+      <p class="error" id="unlock-error" role="alert"></p>
+      <button class="btn primary block" id="unlock-btn">Unlock</button>
+    </form>
+    <p class="small" style="margin:12px 0 0"><button class="btn link" id="unlock-forget">Forgot passcode? Forget this device</button></p>
+  </div>
+</section>
+
+<div id="screen-app" hidden>
+  <header class="topbar">
+    <div class="topbar-in">
+      <div class="brand">Budget Planner</div>
+      <nav class="tabs" aria-label="Pages">
+        <button class="tab" data-page="home">Home</button>
+        <button class="tab" data-page="entries">Entries</button>
+        <button class="tab" data-page="accounts">Accounts</button>
+        <button class="tab" data-page="settings">Settings</button>
+      </nav>
+    </div>
+  </header>
+  <main id="page"></main>
+  <footer class="foot" id="footer"></footer>
+</div>
+
+<dialog id="dlg-entry" aria-labelledby="entry-title">
+  <form id="entry-form" novalidate>
+    <h3 id="entry-title">Add entry</h3>
+    <label>Item <input id="e-item" required></label>
+    <label>Amount (₹) <input id="e-amount" type="number" inputmode="decimal" min="0" step="any" required></label>
+    <label>How often
+      <select id="e-frequency"><option>Monthly</option><option>Quarterly</option><option>Yearly</option></select>
+    </label>
+    <label>Heading <select id="e-section"></select></label>
+    <label>Account <select id="e-account"></select></label>
+    <label>Notes <textarea id="e-notes" rows="2"></textarea></label>
+    <p class="error" id="entry-error" role="alert"></p>
+    <div class="dlg-foot">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button class="btn primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-confirm" aria-labelledby="confirm-text">
+  <p id="confirm-text"></p>
+  <div class="dlg-foot">
+    <button type="button" class="btn" data-close>Cancel</button>
+    <button type="button" class="btn primary" id="confirm-ok">OK</button>
+  </div>
+</dialog>
+
+<dialog id="dlg-newpass" aria-labelledby="newpass-title">
+  <form id="newpass-form" novalidate>
+    <h3 id="newpass-title">Passcode changed on another device</h3>
+    <p class="small muted">Enter the current passcode to keep using this device.</p>
+    <label>Passcode <input id="np-pass" type="password" autocomplete="off" required></label>
+    <p class="error" id="newpass-error" role="alert"></p>
+    <div class="dlg-foot"><button class="btn primary">Continue</button></div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+'use strict';
+
+const APP_VERSION = '1.0.0';
+const PBKDF2_ITERATIONS = 250000;
+const MIN_PASSCODE = 6;
+const DATA_PATH = 'budget-data.json';
+const SAVE_DELAY_MS = 400;
+const LS_CONFIG = 'budgetConfig';
+const ACCOUNT_TYPES = ['Income', 'Spending', 'Sinking', 'Savings'];
+const FREQUENCIES = ['Monthly', 'Quarterly', 'Yearly'];
+
+// CORE-START: calculations and encryption, used by the app and by the Node test.
+
+function monthlyEquivalent(entry) {
+  const amount = Number(entry.amount) || 0;
+  if (entry.frequency === 'Quarterly') return amount / 3;
+  if (entry.frequency === 'Yearly') return amount / 12;
+  return amount;
+}
+
+function summarize(data) {
+  const sections = new Map(data.sections.map(s => [s.id, s]));
+  const rows = new Map(data.accounts.map(a => [a.id, {
+    account: a, expenses: 0, yearlyPerMonth: 0, savings: 0, total: 0, yearlyRouted: 0, entries: []
+  }]));
+  const missingAccount = [];
+  const missingSection = [];
+
+  for (const entry of data.entries) {
+    const section = sections.get(entry.section);
+    if (!section) missingSection.push(entry);
+    const row = rows.get(entry.account);
+    if (!row) { missingAccount.push(entry); continue; }
+    const monthly = monthlyEquivalent(entry);
+    row.entries.push(entry);
+    row.total += monthly;
+    if (section && section.kind === 'savings') {
+      row.savings += monthly;
+    } else {
+      row.expenses += monthly;
+      if (entry.frequency === 'Yearly') {
+        row.yearlyPerMonth += monthly;
+        row.yearlyRouted += monthly * 12;
+      }
+    }
+  }
+
+  const accounts = [...rows.values()];
+  const sum = field => accounts.reduce((total, row) => total + row[field], 0);
+  const totalTransfer = sum('total');
+  const income = Number(data.settings.income) || 0;
+  const buffer = Number(data.settings.buffer) || 0;
+  const left = income - totalTransfer;
+
+  const bySection = data.sections.map(section => {
+    const entries = data.entries.filter(e => e.section === section.id);
+    const monthly = entries.reduce((total, e) => total + monthlyEquivalent(e), 0);
+    return { section, count: entries.length, monthly, yearly: monthly * 12 };
+  });
+
+  return {
+    accounts, bySection, income, buffer, left, totalTransfer,
+    bufferOk: left >= buffer,
+    totals: {
+      expenses: sum('expenses'), yearlyPerMonth: sum('yearlyPerMonth'), savings: sum('savings'),
+      total: totalTransfer, yearlyRouted: sum('yearlyRouted')
+    },
+    missingAccount, missingSection
+  };
+}
+
+function bytesToBase64(bytes) {
+  let binary = '';
+  for (const byte of new Uint8Array(bytes)) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function base64ToBytes(text) {
+  return Uint8Array.from(atob(text), c => c.charCodeAt(0));
+}
+
+function randomBytes(length) {
+  return crypto.getRandomValues(new Uint8Array(length));
+}
+
+async function deriveKey(passcode, saltBase64, iterations = PBKDF2_ITERATIONS) {
+  const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(passcode), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', hash: 'SHA-256', salt: base64ToBytes(saltBase64), iterations },
+    material,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function encryptText(key, text) {
+  const iv = randomBytes(12);
+  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(text));
+  return { iv: bytesToBase64(iv), ciphertext: bytesToBase64(ciphertext) };
+}
+
+async function decryptText(key, blob) {
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(blob.iv) }, key, base64ToBytes(blob.ciphertext));
+  return new TextDecoder().decode(plain);
+}
+
+// CORE-END
+
+/* ---------- Session state ---------- */
+
+const S = {
+  config: null,   // { owner, repo, salt, iterations, token: {iv, ciphertext} }
+  key: null,
+  token: null,
+  data: null,
+  sha: null,
+  latest: null,   // newest encrypted file text
+  pending: false,
+  syncing: null,
+  page: 'home',
+  open: new Set(),
+  setup: null
+};
+let saveTimer = null;
+
+/* ---------- Small helpers ---------- */
+
+const $ = id => document.getElementById(id);
+const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const rupeeFormat = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+const inr = value => rupeeFormat.format(Math.round(value) || 0);
+const newId = prefix => prefix + '_' + Array.from(randomBytes(6), b => b.toString(16).padStart(2, '0')).join('');
+const entryCount = count => count === 1 ? '1 entry' : `${count} entries`;
+const options = (items, selected) => items.map(item => {
+  const value = typeof item === 'string' ? item : item.id;
+  const label = typeof item === 'string' ? item : item.name;
+  return `<option value="${esc(value)}"${value === selected ? ' selected' : ''}>${esc(label)}</option>`;
+}).join('');
+
+function show(screen) {
+  for (const id of ['screen-setup', 'screen-unlock', 'screen-app']) $(id).hidden = id !== screen;
+}
+
+let toastTimer = null;
+function toast(message, bad = false) {
+  const el = $('toast');
+  el.textContent = message;
+  el.className = bad ? 'toast bad' : 'toast';
+  el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, bad ? 6000 : 2500);
+}
+
+function ask(message, okLabel = 'OK', danger = false) {
+  return new Promise(resolve => {
+    const dialog = $('dlg-confirm');
+    const ok = $('confirm-ok');
+    $('confirm-text').textContent = message;
+    ok.textContent = okLabel;
+    ok.className = danger ? 'btn danger' : 'btn primary';
+    dialog.returnValue = '';
+    dialog.addEventListener('close', () => resolve(dialog.returnValue === 'ok'), { once: true });
+    dialog.showModal();
+  });
+}
+
+/* ---------- Config on this device ---------- */
+
+function loadConfig() {
+  try { return JSON.parse(localStorage.getItem(LS_CONFIG)); } catch { return null; }
+}
+
+function saveConfig() {
+  localStorage.setItem(LS_CONFIG, JSON.stringify(S.config));
+}
+
+function forgetDevice() {
+  localStorage.removeItem(LS_CONFIG);
+  location.reload();
+}
+
+/* ---------- GitHub ---------- */
+
+class GitHubError extends Error {
+  constructor(status) {
+    super(status === 401 ? 'GitHub rejected the token. Replace it in Settings.'
+      : status === 403 ? 'The token does not have permission for this repository.'
+      : `GitHub returned an error (${status}).`);
+    this.status = status;
+  }
+}
+
+async function github(path, options = {}) {
+  const { owner, repo } = S.config;
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}${path}`, {
+    ...options,
+    cache: 'no-store',
+    headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${S.token}` }
+  });
+  if (res.status === 404 && options.allow404) return null;
+  if (!res.ok) throw new GitHubError(res.status);
+  return res.json();
+}
+
+async function getFile() {
+  const file = await github(`/contents/${DATA_PATH}`, { allow404: true });
+  if (!file) return null;
+  return { sha: file.sha, text: atob(file.content.replace(/\s/g, '')) };
+}
+
+async function putFile(text) {
+  const send = () => github(`/contents/${DATA_PATH}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      message: `Budget update ${new Date().toISOString()}`,
+      content: btoa(text),
+      ...(S.sha ? { sha: S.sha } : {})
+    })
+  });
+  let result;
+  try {
+    result = await send();
+  } catch (error) {
+    if (!(error instanceof GitHubError) || (error.status !== 409 && error.status !== 422)) throw error;
+    const current = await getFile();
+    S.sha = current ? current.sha : null;
+    result = await send();
+  }
+  S.sha = result.content.sha;
+}
+
+/* ---------- Saving ---------- */
+
+async function packData() {
+  const blob = await encryptText(S.key, JSON.stringify(S.data));
+  return JSON.stringify({ version: 1, salt: S.config.salt, iterations: S.config.iterations, ...blob });
+}
+
+function isPending() { return S.pending; }
+function setPending(value) { S.pending = value; }
+function stage(text) { S.latest = text; setPending(true); }
+
+function syncNow() {
+  if (S.syncing) return S.syncing;
+  S.syncing = (async () => {
+    try {
+      while (isPending() && S.key) {
+        const sent = S.latest;
+        await putFile(sent);
+        if (sent === S.latest) setPending(false);
+      }
+    } catch (error) {
+      toast(error instanceof GitHubError ? error.message : 'Could not reach GitHub. Your change is not saved yet.', true);
+    } finally {
+      S.syncing = null;
+      updateFooter();
+    }
+  })();
+  updateFooter();
+  return S.syncing;
+}
+
+async function saveNow() {
+  clearTimeout(saveTimer);
+  saveTimer = null;
+  stage(await packData());
+  await syncNow();
+  updateFooter();
+}
+
+function changed() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveNow, SAVE_DELAY_MS);
+  updateFooter();
+}
+
+function hasUnsavedWork() { return isPending() || saveTimer !== null; }
+
+/* ---------- Setup ---------- */
+
+function validateData(data) {
+  const ok = data && data.settings && Array.isArray(data.accounts) && Array.isArray(data.sections) && Array.isArray(data.entries);
+  if (!ok) throw new Error('This file does not look like budget data.');
+  return {
+    settings: { income: Number(data.settings.income) || 0, buffer: Number(data.settings.buffer) || 0 },
+    accounts: data.accounts, sections: data.sections, entries: data.entries
+  };
+}
+
+function emptyData() {
+  return { settings: { income: 0, buffer: 0 }, accounts: [], sections: [], entries: [] };
+}
+
+async function finishSetup(data) {
+  S.data = validateData(data);
+  saveConfig();
+  await saveNow();
+  if (isPending()) throw new Error('Could not save to GitHub. Check your connection and try again.');
+  enterApp();
+}
+
+async function handleSetup(event) {
+  event.preventDefault();
+  const error = $('setup-error');
+  const owner = $('s-owner').value.trim();
+  const repo = $('s-repo').value.trim();
+  const token = $('s-token').value.trim();
+  const passcode = $('s-pass').value;
+  error.textContent = '';
+  if (!/^[A-Za-z0-9-]+$/.test(owner)) { error.textContent = 'Enter a valid GitHub username.'; return; }
+  if (!/^[A-Za-z0-9._-]+$/.test(repo)) { error.textContent = 'Enter a valid repository name.'; return; }
+  if (!token) { error.textContent = 'Enter your token.'; return; }
+  if (passcode.length < MIN_PASSCODE) { error.textContent = `Passcode must be at least ${MIN_PASSCODE} characters.`; return; }
+  if (passcode !== $('s-pass2').value) { error.textContent = 'The passcodes do not match.'; return; }
+
+  const button = $('setup-btn');
+  button.disabled = true;
+  button.textContent = 'Checking…';
+  S.config = { owner, repo };
+  S.token = token;
+  try {
+    const found = await github('', { allow404: true });
+    if (!found) throw new Error('Repository not found. Check the username, the repository name and the token access.');
+    const file = await getFile();
+    const envelope = file ? JSON.parse(file.text) : { salt: bytesToBase64(randomBytes(16)), iterations: PBKDF2_ITERATIONS };
+    const { salt, iterations } = envelope;
+    S.key = await deriveKey(passcode, salt, iterations);
+    S.config = { owner, repo, salt, iterations, token: await encryptText(S.key, token) };
+    if (file) {
+      try {
+        S.data = JSON.parse(await decryptText(S.key, envelope));
+      } catch {
+        throw new Error('That passcode does not open the budget in this repository.');
+      }
+      S.sha = file.sha;
+      saveConfig();
+      enterApp();
+    } else {
+      $('setup-form').hidden = true;
+      $('setup-start').hidden = false;
+    }
+  } catch (problem) {
+    S.key = null;
+    error.textContent = problem instanceof TypeError ? 'Could not reach GitHub. Check your connection.' : problem.message;
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Continue';
+  }
+}
+
+async function handleStart(useFile) {
+  const error = $('start-error');
+  error.textContent = '';
+  try {
+    if (!useFile) {
+      await finishSetup(emptyData());
+      return;
+    }
+    const file = $('s-file').files[0];
+    if (!file) { error.textContent = 'Choose a file first.'; return; }
+    await finishSetup(JSON.parse(await file.text()));
+  } catch (problem) {
+    error.textContent = problem instanceof SyntaxError ? 'This file is not valid JSON.' : problem.message;
+  }
+}
+
+/* ---------- Unlock and lock ---------- */
+
+function askNewPasscode(envelope) {
+  return new Promise(resolve => {
+    const dialog = $('dlg-newpass');
+    const form = $('newpass-form');
+    $('np-pass').value = '';
+    $('newpass-error').textContent = '';
+    form.onsubmit = async event => {
+      event.preventDefault();
+      try {
+        const key = await deriveKey($('np-pass').value, envelope.salt, envelope.iterations);
+        const text = await decryptText(key, envelope);
+        dialog.close();
+        resolve({ key, text });
+      } catch {
+        $('newpass-error').textContent = 'That passcode did not work.';
+      }
+    };
+    dialog.oncancel = event => event.preventDefault();
+    dialog.showModal();
+  });
+}
+
+async function openFile(file) {
+  const envelope = JSON.parse(file.text);
+  S.sha = file.sha;
+  S.latest = file.text;
+  if (envelope.salt === S.config.salt) return decryptText(S.key, envelope);
+  const { key, text } = await askNewPasscode(envelope);
+  S.key = key;
+  S.config.salt = envelope.salt;
+  S.config.iterations = envelope.iterations;
+  S.config.token = await encryptText(key, S.token);
+  saveConfig();
+  return text;
+}
+
+async function loadBudget() {
+  const file = await getFile();
+  if (!file) throw new Error('The data file is missing from your repository.');
+  S.data = JSON.parse(await openFile(file));
+}
+
+async function handleUnlock(event) {
+  event.preventDefault();
+  const error = $('unlock-error');
+  const button = $('unlock-btn');
+  error.textContent = '';
+  button.disabled = true;
+  button.textContent = 'Unlocking…';
+  try {
+    const key = await deriveKey($('u-pass').value, S.config.salt, S.config.iterations);
+    try {
+      S.token = await decryptText(key, S.config.token);
+    } catch {
+      error.textContent = 'Wrong passcode.';
+      return;
+    }
+    S.key = key;
+    await loadBudget();
+    $('u-pass').value = '';
+    enterApp();
+  } catch (problem) {
+    S.key = null;
+    S.token = null;
+    error.textContent = problem instanceof TypeError ? 'Could not reach GitHub. Check your connection.' : problem.message;
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Unlock';
+  }
+}
+
+async function lock() {
+  if (saveTimer) await saveNow();
+  if (S.syncing) await S.syncing;
+  if (isPending() && !await ask('Some changes are not saved to GitHub and will be lost if you lock now.', 'Lock anyway', true)) return;
+  setPending(false);
+  S.key = S.token = S.data = S.sha = S.latest = null;
+  S.open.clear();
+  $('page').innerHTML = '';
+  show('screen-unlock');
+  $('u-pass').focus();
+}
+
+function enterApp() {
+  show('screen-app');
+  go('home');
+}
+
+/* ---------- Rendering ---------- */
+
+function go(page) {
+  S.page = page;
+  render();
+  window.scrollTo(0, 0);
+}
+
+function render() {
+  document.querySelectorAll('.tab').forEach(tab => {
+    if (tab.dataset.page === S.page) tab.setAttribute('aria-current', 'page');
+    else tab.removeAttribute('aria-current');
+  });
+  ({ home: renderHome, entries: renderEntries, accounts: renderAccounts, settings: renderSettings })[S.page]();
+  updateFooter();
+}
+
+function updateFooter() {
+  const parts = [`Version ${APP_VERSION}`];
+  if (hasUnsavedWork()) parts.push('changes not yet synced');
+  $('footer').textContent = parts.join(' · ');
+}
+
+function renderHome() {
+  const s = summarize(S.data);
+  const warnings = [];
+  if (s.missingAccount.length) warnings.push(`Pointing to a deleted account and not counted: ${entryCount(s.missingAccount.length)} (${s.missingAccount.map(e => e.item).join(', ')}).`);
+  if (s.missingSection.length) warnings.push(`Pointing to a deleted heading: ${entryCount(s.missingSection.length)} (${s.missingSection.map(e => e.item).join(', ')}).`);
+
+  const accountRows = s.accounts.map(row => {
+    const id = row.account.id;
+    const isOpen = S.open.has(id);
+    const detail = row.entries.length
+      ? `<ul>${row.entries.map(e => `<li><span>${esc(e.item)} <span class="muted">(${esc(e.frequency)})</span></span><span class="num">${inr(monthlyEquivalent(e))}</span></li>`).join('')}</ul>`
+      : '<span class="muted small">No entries use this account.</span>';
+    return `<tr>
+      <td><button class="expander" data-action="toggle-account" data-id="${esc(id)}" aria-expanded="${isOpen}">${esc(row.account.name)}</button></td>
+      <td class="num">${inr(row.expenses)}</td>
+      <td class="num">${inr(row.yearlyPerMonth)}</td>
+      <td class="num">${inr(row.savings)}</td>
+      <td class="num"><strong>${inr(row.total)}</strong></td>
+      <td class="num">${inr(row.yearlyRouted)}</td>
+    </tr>${isOpen ? `<tr class="detail"><td colspan="6">${detail}</td></tr>` : ''}`;
+  }).join('');
+
+  const sectionRows = s.bySection.map(row => `<tr>
+      <td>${esc(row.section.name)}</td>
+      <td class="num">${row.count}</td>
+      <td class="num">${inr(row.monthly)}</td>
+      <td class="num">${inr(row.yearly)}</td>
+    </tr>`).join('');
+  const sectionMonthly = s.bySection.reduce((total, row) => total + row.monthly, 0);
+  const sectionCount = s.bySection.reduce((total, row) => total + row.count, 0);
+
+  $('page').innerHTML = `
+    <div class="page-head"><h2>This month</h2></div>
+    ${warnings.map(text => `<div class="notice" role="alert">${esc(text)}</div>`).join('')}
+    <div class="kpis">
+      <div class="kpi"><div class="kpi-label">Income</div><div class="kpi-value">${inr(s.income)}</div></div>
+      <div class="kpi"><div class="kpi-label">Total to transfer</div><div class="kpi-value">${inr(s.totalTransfer)}</div></div>
+      <div class="kpi"><div class="kpi-label">Left in salary</div><div class="kpi-value">${inr(s.left)}</div></div>
+      <div class="kpi ${s.bufferOk ? 'good' : 'bad'}">
+        <div class="kpi-label">Buffer check (${inr(s.buffer)})</div>
+        <div class="kpi-value">${s.bufferOk ? 'Passes' : `Short ${inr(s.buffer - s.left)}`}</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Monthly transfers</h3><span class="subtotals">Select an account to see its entries</span></div>
+      ${s.accounts.length ? `<div class="scroll"><table class="transfers">
+        <thead><tr>
+          <th>Account</th><th class="num">Expenses per month</th><th class="num">Of which yearly, per month</th>
+          <th class="num">Savings per month</th><th class="num">Total to receive per month</th><th class="num">Yearly routed, per year</th>
+        </tr></thead>
+        <tbody>${accountRows}</tbody>
+        <tfoot><tr>
+          <td>Total</td><td class="num">${inr(s.totals.expenses)}</td><td class="num">${inr(s.totals.yearlyPerMonth)}</td>
+          <td class="num">${inr(s.totals.savings)}</td><td class="num">${inr(s.totals.total)}</td><td class="num">${inr(s.totals.yearlyRouted)}</td>
+        </tr></tfoot>
+      </table></div>` : '<p class="empty">No accounts yet. Add one on the Accounts page.</p>'}
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Summary by heading</h3></div>
+      ${s.bySection.length ? `<div class="scroll"><table>
+        <thead><tr><th>Heading</th><th class="num">Items</th><th class="num">Monthly</th><th class="num">Yearly</th></tr></thead>
+        <tbody>${sectionRows}</tbody>
+        <tfoot><tr><td>Total</td><td class="num">${sectionCount}</td><td class="num">${inr(sectionMonthly)}</td><td class="num">${inr(sectionMonthly * 12)}</td></tr></tfoot>
+      </table></div>` : '<p class="empty">No headings yet. Add one in Settings.</p>'}
+    </div>`;
+}
+
+function renderEntries() {
+  const accountName = id => {
+    const account = S.data.accounts.find(a => a.id === id);
+    return account ? account.name : 'Deleted account';
+  };
+  const cards = S.data.sections.map(section => {
+    const entries = S.data.entries.filter(e => e.section === section.id);
+    const monthly = entries.reduce((total, e) => total + monthlyEquivalent(e), 0);
+    const rows = entries.map(e => `<tr>
+        <td class="title">${esc(e.item)}</td>
+        <td class="num" data-label="Amount">${inr(e.amount)}</td>
+        <td data-label="How often">${esc(e.frequency)}</td>
+        <td class="num" data-label="Per month">${inr(monthlyEquivalent(e))}</td>
+        <td data-label="Account">${esc(accountName(e.account))}</td>
+        <td class="notes">${esc(e.notes)}</td>
+        <td class="actions">
+          <button class="btn" data-action="edit-entry" data-id="${esc(e.id)}" aria-label="Edit ${esc(e.item)}">Edit</button>
+          <button class="btn danger" data-action="delete-entry" data-id="${esc(e.id)}" aria-label="Delete ${esc(e.item)}">Delete</button>
+        </td>
+      </tr>`).join('');
+    return `<div class="card">
+      <div class="card-head">
+        <div><h3>${esc(section.name)}</h3><div class="subtotals">${inr(monthly)} a month · ${inr(monthly * 12)} a year</div></div>
+        <button class="btn" data-action="add-entry" data-id="${esc(section.id)}">Add entry</button>
+      </div>
+      ${entries.length ? `<table class="stack">
+        <thead><tr><th>Item</th><th class="num">Amount</th><th>How often</th><th class="num">Per month</th><th>Account</th><th>Notes</th><th><span hidden>Actions</span></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>` : '<p class="empty">No entries under this heading yet.</p>'}
+    </div>`;
+  }).join('');
+  $('page').innerHTML = `
+    <div class="page-head"><h2>Entries</h2></div>
+    ${!S.data.accounts.length ? '<div class="notice">Add an account on the Accounts page before adding entries.</div>' : ''}
+    ${cards || '<div class="card"><p class="empty">No headings yet. Add one in Settings.</p></div>'}`;
+}
+
+function openEntryDialog(entry, sectionId) {
+  if (!S.data.accounts.length) { toast('Add an account first.', true); return; }
+  S.editing = entry ? entry.id : null;
+  $('entry-title').textContent = entry ? 'Edit entry' : 'Add entry';
+  $('e-item').value = entry ? entry.item : '';
+  $('e-amount').value = entry ? entry.amount : '';
+  $('e-frequency').value = entry ? entry.frequency : 'Monthly';
+  $('e-section').innerHTML = options(S.data.sections, entry ? entry.section : sectionId);
+  $('e-account').innerHTML = options(S.data.accounts, entry ? entry.account : undefined);
+  $('e-notes').value = entry ? entry.notes : '';
+  $('entry-error').textContent = '';
+  $('dlg-entry').showModal();
+}
+
+function handleEntrySubmit(event) {
+  event.preventDefault();
+  const item = $('e-item').value.trim();
+  const amount = Number($('e-amount').value);
+  if (!item) { $('entry-error').textContent = 'Enter the item name.'; return; }
+  if ($('e-amount').value === '' || !Number.isFinite(amount) || amount < 0) { $('entry-error').textContent = 'Enter an amount of 0 or more.'; return; }
+  const values = {
+    section: $('e-section').value, item, amount, frequency: $('e-frequency').value,
+    account: $('e-account').value, notes: $('e-notes').value.trim()
+  };
+  if (S.editing) Object.assign(S.data.entries.find(e => e.id === S.editing), values);
+  else S.data.entries.push({ id: newId('ent'), ...values });
+  $('dlg-entry').close();
+  render();
+  changed();
+}
+
+function renderAccounts() {
+  const transfers = new Map(summarize(S.data).accounts.map(row => [row.account.id, row.total]));
+  const rows = S.data.accounts.map(a => `<tr data-id="${esc(a.id)}">
+      <td data-label="Name"><input aria-label="Account name" data-field="name" value="${esc(a.name)}"></td>
+      <td data-label="Role"><input aria-label="Role" data-field="role" value="${esc(a.role)}"></td>
+      <td data-label="Type"><select aria-label="Type" data-field="type">${options(ACCOUNT_TYPES, a.type)}</select></td>
+      <td class="num" data-label="Per month">${inr(transfers.get(a.id))}</td>
+      <td class="actions"><button class="btn danger" data-action="delete-account" data-id="${esc(a.id)}" aria-label="Delete ${esc(a.name)}">Delete</button></td>
+    </tr>`).join('');
+  $('page').innerHTML = `
+    <div class="page-head"><h2>Accounts</h2><button class="btn primary" data-action="add-account">Add account</button></div>
+    <div class="card">
+      ${rows ? `<table class="stack edit-table" data-list="accounts">
+        <thead><tr><th>Name</th><th>Role</th><th>Type</th><th class="num">Per month</th><th><span hidden>Actions</span></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>` : '<p class="empty">No accounts yet.</p>'}
+    </div>`;
+}
+
+function renderSettings() {
+  const rows = S.data.sections.map(s => `<tr data-id="${esc(s.id)}">
+      <td data-label="Name"><input aria-label="Heading name" data-field="name" value="${esc(s.name)}"></td>
+      <td data-label="Kind"><select aria-label="Kind" data-field="kind">
+        <option value="expense"${s.kind === 'expense' ? ' selected' : ''}>Expense</option>
+        <option value="savings"${s.kind === 'savings' ? ' selected' : ''}>Savings</option>
+      </select></td>
+      <td class="actions"><button class="btn danger" data-action="delete-section" data-id="${esc(s.id)}" aria-label="Delete ${esc(s.name)}">Delete</button></td>
+    </tr>`).join('');
+  $('page').innerHTML = `
+    <div class="page-head"><h2>Settings</h2></div>
+    <div class="card">
+      <div class="card-head"><h3>Income and buffer</h3></div>
+      <div class="card-body">
+        <label>Monthly income, into the salary account (₹)
+          <input id="set-income" type="number" inputmode="decimal" min="0" step="any" value="${esc(S.data.settings.income)}">
+        </label>
+        <label style="margin-bottom:0">Buffer, the minimum to keep in salary (₹)
+          <input id="set-buffer" type="number" inputmode="decimal" min="0" step="any" value="${esc(S.data.settings.buffer)}">
+        </label>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Headings</h3><button class="btn" data-action="add-section">Add heading</button></div>
+      ${rows ? `<table class="stack edit-table" data-list="sections">
+        <thead><tr><th>Name</th><th>Kind</th><th><span hidden>Actions</span></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>` : '<p class="empty">No headings yet.</p>'}
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Data and security</h3></div>
+      <div class="card-body">
+        <form id="pass-form" novalidate>
+          <h3 style="margin-bottom:8px">Change passcode</h3>
+          <label>Current passcode <input id="p-old" type="password" autocomplete="current-password"></label>
+          <label>New passcode <span class="hint">At least ${MIN_PASSCODE} characters.</span><input id="p-new" type="password" autocomplete="new-password"></label>
+          <label>Confirm new passcode <input id="p-new2" type="password" autocomplete="new-password"></label>
+          <p class="error" id="pass-error" role="alert"></p>
+          <button class="btn">Change passcode</button>
+        </form>
+        <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+        <form id="token-form" novalidate>
+          <h3 style="margin-bottom:8px">Replace GitHub token</h3>
+          <label>New fine-grained token <input id="t-new" type="password" autocomplete="off" spellcheck="false"></label>
+          <p class="error" id="token-error" role="alert"></p>
+          <button class="btn">Replace token</button>
+        </form>
+        <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+        <div class="btn-row">
+          <button class="btn" data-action="backup">Download encrypted backup</button>
+          <button class="btn" data-action="lock">Lock now</button>
+          <button class="btn danger" data-action="forget">Forget this device</button>
+        </div>
+      </div>
+    </div>
+    <p class="muted small">Budget Planner version ${esc(APP_VERSION)}</p>`;
+  $('pass-form').addEventListener('submit', handleChangePasscode);
+  $('token-form').addEventListener('submit', handleReplaceToken);
+}
+
+/* ---------- Settings actions ---------- */
+
+async function handleChangePasscode(event) {
+  event.preventDefault();
+  const error = $('pass-error');
+  const next = $('p-new').value;
+  error.textContent = '';
+  if (next.length < MIN_PASSCODE) { error.textContent = `New passcode must be at least ${MIN_PASSCODE} characters.`; return; }
+  if (next !== $('p-new2').value) { error.textContent = 'The new passcodes do not match.'; return; }
+  try {
+    const current = await deriveKey($('p-old').value, S.config.salt, S.config.iterations);
+    await decryptText(current, S.config.token);
+  } catch {
+    error.textContent = 'Current passcode is wrong.';
+    return;
+  }
+  const salt = bytesToBase64(randomBytes(16));
+  const key = await deriveKey(next, salt);
+  S.config = { ...S.config, salt, iterations: PBKDF2_ITERATIONS, token: await encryptText(key, S.token) };
+  S.key = key;
+  saveConfig();
+  await saveNow();
+  $('pass-form').reset();
+  toast('Passcode changed.');
+}
+
+async function handleReplaceToken(event) {
+  event.preventDefault();
+  const error = $('token-error');
+  const token = $('t-new').value.trim();
+  error.textContent = '';
+  if (!token) { error.textContent = 'Enter the new token.'; return; }
+  const previous = S.token;
+  S.token = token;
+  try {
+    if (!await github('', { allow404: true })) throw new Error('This token cannot see your repository.');
+    S.config.token = await encryptText(S.key, token);
+    saveConfig();
+    $('token-form').reset();
+    toast('Token replaced.');
+    syncNow();
+  } catch (problem) {
+    S.token = previous;
+    error.textContent = problem instanceof TypeError ? 'Could not reach GitHub. Check your connection.' : problem.message;
+  }
+}
+
+async function downloadBackup() {
+  const url = URL.createObjectURL(new Blob([await packData()], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `budget-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function confirmForget() {
+  const message = hasUnsavedWork()
+    ? 'You have changes not yet synced to GitHub. Forgetting this device will lose them. Continue?'
+    : 'This removes your token and settings from this browser. Your budget stays in GitHub.';
+  if (await ask(message, 'Forget this device', true)) forgetDevice();
+}
+
+/* ---------- Page actions ---------- */
+
+const actions = {
+  'toggle-account'(id) {
+    if (!S.open.delete(id)) S.open.add(id);
+    render();
+  },
+  'add-entry'(id) { openEntryDialog(null, id); },
+  'edit-entry'(id) { openEntryDialog(S.data.entries.find(e => e.id === id)); },
+  async 'delete-entry'(id) {
+    const entry = S.data.entries.find(e => e.id === id);
+    if (!await ask(`Delete "${entry.item}"?`, 'Delete', true)) return;
+    S.data.entries = S.data.entries.filter(e => e.id !== id);
+    render();
+    changed();
+  },
+  'add-account'() {
+    S.data.accounts.push({ id: newId('acc'), name: 'New account', role: '', type: 'Spending' });
+    render();
+    changed();
+  },
+  async 'delete-account'(id) {
+    const used = S.data.entries.filter(e => e.account === id).length;
+    if (used) { toast(`This account is used by ${entryCount(used)}. Move or delete them first.`, true); return; }
+    const account = S.data.accounts.find(a => a.id === id);
+    if (!await ask(`Delete "${account.name}"?`, 'Delete', true)) return;
+    S.data.accounts = S.data.accounts.filter(a => a.id !== id);
+    render();
+    changed();
+  },
+  'add-section'() {
+    S.data.sections.push({ id: newId('sec'), name: 'New heading', kind: 'expense' });
+    render();
+    changed();
+  },
+  async 'delete-section'(id) {
+    const used = S.data.entries.filter(e => e.section === id).length;
+    if (used) { toast(`This heading has ${entryCount(used)}. Move or delete them first.`, true); return; }
+    const section = S.data.sections.find(s => s.id === id);
+    if (!await ask(`Delete "${section.name}"?`, 'Delete', true)) return;
+    S.data.sections = S.data.sections.filter(s => s.id !== id);
+    render();
+    changed();
+  },
+  backup: downloadBackup,
+  lock,
+  forget: confirmForget
+};
+
+function handlePageClick(event) {
+  const button = event.target.closest('[data-action]');
+  if (button) actions[button.dataset.action](button.dataset.id);
+}
+
+function handlePageChange(event) {
+  const input = event.target;
+  if (input.id === 'set-income' || input.id === 'set-buffer') {
+    S.data.settings[input.id === 'set-income' ? 'income' : 'buffer'] = Math.max(0, Number(input.value) || 0);
+    changed();
+    return;
+  }
+  const table = input.closest('[data-list]');
+  if (!table || !input.dataset.field) return;
+  const row = S.data[table.dataset.list].find(item => item.id === input.closest('tr').dataset.id);
+  row[input.dataset.field] = input.value.trim();
+  changed();
+}
+
+/* ---------- Start ---------- */
+
+function start() {
+  $('setup-form').addEventListener('submit', handleSetup);
+  $('start-file').addEventListener('click', () => handleStart(true));
+  $('start-empty').addEventListener('click', () => handleStart(false));
+  $('unlock-form').addEventListener('submit', handleUnlock);
+  $('unlock-forget').addEventListener('click', confirmForget);
+  $('entry-form').addEventListener('submit', handleEntrySubmit);
+  $('confirm-ok').addEventListener('click', () => $('dlg-confirm').close('ok'));
+  document.querySelectorAll('[data-close]').forEach(button => {
+    button.addEventListener('click', () => button.closest('dialog').close());
+  });
+  document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => go(tab.dataset.page)));
+  $('page').addEventListener('click', handlePageClick);
+  $('page').addEventListener('change', handlePageChange);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && saveTimer) saveNow();
+  });
+
+  S.config = loadConfig();
+  show(S.config ? 'screen-unlock' : 'screen-setup');
+}
+
+start();
+</script>
+</body>
+</html>

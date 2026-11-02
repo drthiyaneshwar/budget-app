@@ -1,0 +1,50 @@
+name: Publish
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Check required files exist
+        run: |
+          for f in index.html CHANGELOG.md README.md; do
+            test -f "$f" || { echo "Missing $f"; exit 1; }
+          done
+      - name: Check JavaScript syntax
+        run: |
+          node .github/scripts/extract-script.js index.html "$RUNNER_TEMP/app.js"
+          node --check "$RUNNER_TEMP/app.js"
+
+  deploy:
+    needs: check
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Collect app files
+        run: |
+          mkdir _site
+          cp index.html _site/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

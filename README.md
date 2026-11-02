@@ -1,0 +1,57 @@
+# Budget Planner
+
+A personal budget planner. Each month it shows how much to transfer into each bank account, and it tracks monthly and yearly expenses and savings.
+
+It is one web page (`index.html`) with no framework and no build step. It runs on GitHub Pages and has no server. Your browser talks directly to the GitHub API.
+
+## How it fits together
+
+| Repository | Visibility | Holds |
+| --- | --- | --- |
+| `budget-app` | Public | The app files only. No data and no token. |
+| `budget-data` | Private | `budget-data.json`, encrypted. Every save is a commit, so the history is your backup. |
+
+## Security
+
+- Your passcode (6 characters or more) creates an AES-256-GCM key using PBKDF2-SHA256 with 250,000 iterations and a random 16-byte salt.
+- Every encryption uses a fresh random 12-byte IV.
+- The passcode is never stored. The GitHub token is stored in this browser only, encrypted with the same key.
+- The key and the unlocked token stay in memory and are cleared when you lock the app.
+- The token needs only **Contents: read and write** on the private repository.
+
+There is no way to recover a forgotten passcode. Keep it somewhere safe.
+
+## Starting data
+
+The app contains no budget data, because this repository is public. The first time you set up, if the private repository has no data file yet, the app asks you to choose a starting data file from your computer or start empty. The file is encrypted before it leaves your browser. You can delete your copy afterwards.
+
+The file is plain JSON:
+
+```json
+{
+  "settings": { "income": 0, "buffer": 0 },
+  "accounts": [{ "id": "acc_1", "name": "", "role": "", "type": "Spending" }],
+  "sections": [{ "id": "sec_1", "name": "", "kind": "expense" }],
+  "entries": [{ "id": "ent_1", "section": "sec_1", "item": "", "amount": 0, "frequency": "Monthly", "account": "acc_1", "notes": "" }]
+}
+```
+
+Account type is `Income`, `Spending`, `Sinking` or `Savings`. Heading kind is `expense` or `savings`. Frequency is `Monthly`, `Quarterly` or `Yearly`.
+
+## How the numbers work
+
+- Monthly equivalent: Monthly = amount, Quarterly = amount ÷ 3, Yearly = amount ÷ 12.
+- Yearly = monthly equivalent × 12.
+- Transfer per account = sum of the monthly equivalents of its entries.
+- Left in salary = income − total to transfer. The buffer check passes when left ≥ buffer.
+- On Home, "Of which yearly" covers expense entries with Yearly frequency only, and "Yearly routed" is that same money per year.
+
+## Backups
+
+Settings has a button to download an encrypted backup. It has the same format as `budget-data.json`. To restore it, replace `budget-data.json` in the private repository with the backup file, then unlock the app with the passcode that was in use when the backup was made.
+
+## Releases
+
+The version is the `APP_VERSION` constant in `index.html`. Changes are listed in `CHANGELOG.md`. Each release has a tag such as `v1.1.0`.
+
+Pushing to `main` runs `.github/workflows/publish.yml`, which checks the files and deploys to GitHub Pages. In the repository's Pages settings, the source must be **GitHub Actions**.
