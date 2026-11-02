@@ -115,14 +115,18 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .foot { max-width: 1040px; margin: 0 auto; padding: 4px 16px 24px; color: var(--muted); font-size: .8125rem; }
 
 /* Cards and figures */
-.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
-.kpi { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 15px 16px; min-width: 0; box-shadow: var(--shadow); }
-.kpi-label { font-size: .8125rem; color: var(--muted); }
-.kpi-value { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.01em; margin-top: 2px; }
-.kpi.good { background: var(--good-bg); border-color: transparent; }
-.kpi.bad { background: var(--bad-bg); border-color: transparent; }
-.kpi.good .kpi-value { color: var(--good); }
-.kpi.bad .kpi-value { color: var(--bad); }
+.cur { font-size: .62em; font-weight: 600; color: var(--muted); margin-right: .08em; vertical-align: .32em; }
+.hero { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px; margin-bottom: 16px; box-shadow: var(--shadow); }
+.hero-top { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px 16px; }
+.hero-label { font-size: .875rem; color: var(--muted); font-weight: 600; }
+.hero-value { font-size: 2.75rem; font-weight: 750; line-height: 1.1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; margin-top: 4px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; font-size: .8125rem; font-weight: 650; }
+.chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.chip.good { background: var(--good-bg); color: var(--good); }
+.chip.bad { background: var(--bad-bg); color: var(--bad); }
+.hero-stats { display: flex; flex-wrap: wrap; gap: 8px 32px; margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--line); }
+.hero-stats dt { font-size: .8125rem; color: var(--muted); }
+.hero-stats dd { margin: 1px 0 0; font-size: 1.2rem; font-weight: 650; font-variant-numeric: tabular-nums; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; box-shadow: var(--shadow); }
 .card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .card-body { padding: 16px; }
@@ -146,12 +150,24 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 
 /* Transfer list */
 .pay-list { list-style: none; margin: 0; padding: 0; }
-.pay-list li { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
-.pay-list li:last-child { border-bottom: 0; }
-.pay-name { display: block; font-weight: 550; }
-.pay-role { display: block; color: var(--muted); font-size: .8125rem; }
-.pay-list .pay-amount { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.pay-list .pay-total { background: var(--accent-soft); font-weight: 700; }
+.pay-list > li { border-bottom: 1px solid var(--line); }
+.pay-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 10px 16px; background: none; border: 0; text-align: left; cursor: pointer; transition: background-color .15s; }
+.pay-row:hover { background: var(--card-raised); }
+.pay-row:focus-visible { outline-offset: -2px; }
+.avatar { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; flex: none; color: #fff; font-weight: 700; font-size: .95rem; }
+.pay-text { flex: 1; min-width: 0; }
+.pay-name { display: block; font-weight: 600; }
+.pay-role { display: block; color: var(--muted); font-size: .8125rem; font-weight: 400; }
+.pay-amount { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chev { width: 18px; height: 18px; flex: none; color: var(--muted); transition: transform .15s; }
+.pay-row[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.pay-detail { padding: 4px 16px 14px 66px; }
+.pay-figures { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px 16px; margin: 0 0 10px; padding: 10px 12px; background: var(--card-raised); border-radius: var(--radius-sm); }
+.pay-figures dt { font-size: .75rem; color: var(--muted); }
+.pay-figures dd { margin: 1px 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pay-entries { list-style: none; margin: 0; padding: 0; }
+.pay-entries li { display: flex; justify-content: space-between; gap: 16px; padding: 4px 0; font-size: .875rem; }
+.pay-total { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 16px; background: var(--accent-soft); font-weight: 700; }
 
 /* Tables */
 .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -161,16 +177,6 @@ th { font-size: .8125rem; color: var(--muted); font-weight: 600; background: var
 th.num { text-align: right; white-space: normal; }
 tfoot td { font-weight: 700; background: var(--card-raised); border-bottom: 0; }
 tbody tr:last-child td { border-bottom: 0; }
-.transfers { min-width: 760px; }
-.transfers th:first-child, .transfers td:first-child { position: sticky; left: 0; background: var(--card); min-width: 190px; max-width: 240px; }
-.transfers th:first-child, .transfers tfoot td:first-child { background: var(--card-raised); }
-.expander { background: none; border: 0; padding: 4px 0; cursor: pointer; text-align: left; font-weight: 600; color: var(--accent); }
-.expander::before { content: "\25B8"; display: inline-block; width: 1.1em; }
-.expander[aria-expanded="true"]::before { content: "\25BE"; }
-.detail td { background: var(--accent-soft); padding: 8px 14px; }
-.transfers .detail td { position: static; max-width: none; background: var(--accent-soft); }
-.detail ul { list-style: none; margin: 0; padding: 0; position: sticky; left: 14px; max-width: min(640px, calc(100vw - 62px)); }
-.detail li { display: flex; justify-content: space-between; gap: 16px; padding: 3px 0; font-size: .875rem; }
 .notes { color: var(--muted); font-size: .875rem; }
 .actions { white-space: nowrap; text-align: right; }
 .actions .btn { min-height: 38px; padding: 5px 11px; font-size: .875rem; font-weight: 500; }
@@ -192,11 +198,11 @@ dialog h3 { margin-bottom: 12px; }
   main { padding: 18px 16px 12px; }
   .foot { padding-bottom: 92px; }
   .toast { bottom: 84px; }
-  .kpis { grid-template-columns: repeat(2, 1fr); }
-  .kpi-value { font-size: 1.25rem; }
-  .transfers { min-width: 640px; }
-  .transfers th:first-child, .transfers td:first-child { min-width: 132px; max-width: 150px; padding-right: 6px; }
-  .transfers .num { padding-left: 6px; padding-right: 8px; }
+  .hero { padding: 16px; }
+  .hero-value { font-size: 2.25rem; }
+  .pay-row { gap: 10px; padding: 10px 12px 10px 16px; }
+  .pay-detail { padding-left: 16px; }
+  .pay-figures { grid-template-columns: repeat(2, 1fr); }
 
   /* Entry and editor tables become stacked rows */
   .stack thead { display: none; }
@@ -347,7 +353,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.5.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -478,6 +484,8 @@ const $ = id => document.getElementById(id);
 const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const rupeeFormat = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
 const inr = value => rupeeFormat.format(Math.round(value) || 0);
+// Same as inr, but with the rupee sign wrapped so it can be shown smaller
+const money = value => rupeeFormat.formatToParts(Math.round(value) || 0).map(part => part.type === 'currency' ? `<span class="cur">${part.value}</span>` : part.value).join('');
 const newId = prefix => prefix + '_' + Array.from(randomBytes(6), b => b.toString(16).padStart(2, '0')).join('');
 const entryCount = count => count === 1 ? '1 entry' : `${count} entries`;
 const options = (items, selected) => items.map(item => {
@@ -866,26 +874,31 @@ function renderHome() {
   if (s.missingAccount.length) warnings.push(`Pointing to a deleted account and not counted: ${entryCount(s.missingAccount.length)} (${s.missingAccount.map(e => e.item).join(', ')}).`);
   if (s.missingSection.length) warnings.push(`Pointing to a deleted heading: ${entryCount(s.missingSection.length)} (${s.missingSection.map(e => e.item).join(', ')}).`);
 
-  const accountRows = s.accounts.map(row => {
+  const typeColor = { Spending: 'var(--seg-expense)', Savings: 'var(--seg-saving)', Sinking: 'var(--seg-left)' };
+  const payRows = s.accounts.filter(row => row.total > 0 || row.entries.length).map(row => {
     const id = row.account.id;
     const isOpen = S.open.has(id);
-    const detail = row.entries.length
-      ? `<ul>${row.entries.map(e => `<li><span>${esc(e.item)} <span class="muted">(${esc(e.frequency)})</span></span><span class="num">${inr(monthlyEquivalent(e))}</span></li>`).join('')}</ul>`
-      : '<span class="muted small">No entries use this account.</span>';
-    return `<tr>
-      <td><button class="expander" data-action="toggle-account" data-id="${esc(id)}" aria-expanded="${isOpen}">${esc(row.account.name)}</button></td>
-      <td class="num">${inr(row.expenses)}</td>
-      <td class="num">${inr(row.yearlyPerMonth)}</td>
-      <td class="num">${inr(row.savings)}</td>
-      <td class="num"><strong>${inr(row.total)}</strong></td>
-      <td class="num">${inr(row.yearlyRouted)}</td>
-    </tr>${isOpen ? `<tr class="detail"><td colspan="6">${detail}</td></tr>` : ''}`;
+    const initial = (row.account.name.trim()[0] || '?').toUpperCase();
+    const figures = [
+      ['Expenses a month', row.expenses],
+      ['Of which yearly, a month', row.yearlyPerMonth],
+      ['Savings a month', row.savings],
+      ['Yearly routed, a year', row.yearlyRouted]
+    ];
+    const detail = `<div class="pay-detail" id="pay-${esc(id)}">
+        <dl class="pay-figures">${figures.map(([label, amount]) => `<div><dt>${label}</dt><dd>${inr(amount)}</dd></div>`).join('')}</dl>
+        <ul class="pay-entries">${row.entries.map(e => `<li><span>${esc(e.item)} <span class="muted">(${esc(e.frequency)})</span></span><span class="num">${inr(monthlyEquivalent(e))}</span></li>`).join('')}</ul>
+      </div>`;
+    return `<li>
+      <button class="pay-row" data-action="toggle-account" data-id="${esc(id)}" aria-expanded="${isOpen}" aria-controls="pay-${esc(id)}">
+        <span class="avatar" style="background:${typeColor[row.account.type] || 'var(--muted)'}" aria-hidden="true">${esc(initial)}</span>
+        <span class="pay-text"><span class="pay-name">${esc(row.account.name)}</span>${row.account.role ? `<span class="pay-role">${esc(row.account.role)}</span>` : ''}</span>
+        <span class="pay-amount">${money(row.total)}</span>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      ${isOpen ? detail : ''}
+    </li>`;
   }).join('');
-
-  const payRows = s.accounts.filter(row => row.total > 0).map(row => `<li>
-      <span><span class="pay-name">${esc(row.account.name)}</span>${row.account.role ? `<span class="pay-role">${esc(row.account.role)}</span>` : ''}</span>
-      <span class="pay-amount">${inr(row.total)}</span>
-    </li>`).join('');
 
   const splitParts = [
     { label: 'Expenses', amount: s.totals.expenses, color: 'var(--seg-expense)' },
@@ -919,33 +932,25 @@ function renderHome() {
   $('page').innerHTML = `
     <div class="page-head"><div><h2>This month</h2><div class="page-sub">${esc(monthName)}</div></div></div>
     ${warnings.map(text => `<div class="notice" role="alert">${esc(text)}</div>`).join('')}
-    <div class="kpis">
-      <div class="kpi"><div class="kpi-label">Income</div><div class="kpi-value">${inr(s.income)}</div></div>
-      <div class="kpi"><div class="kpi-label">Total to transfer</div><div class="kpi-value">${inr(s.totalTransfer)}</div></div>
-      <div class="kpi"><div class="kpi-label">Left in salary</div><div class="kpi-value">${inr(s.left)}</div></div>
-      <div class="kpi ${s.bufferOk ? 'good' : 'bad'}">
-        <div class="kpi-label">Buffer check (${inr(s.buffer)})</div>
-        <div class="kpi-value">${s.bufferOk ? 'Passes' : `Short ${inr(s.buffer - s.left)}`}</div>
+    <section class="hero" aria-labelledby="hero-label">
+      <div class="hero-top">
+        <div>
+          <div class="hero-label" id="hero-label">Total to transfer</div>
+          <div class="hero-value">${money(s.totalTransfer)}</div>
+        </div>
+        <span class="chip ${s.bufferOk ? 'good' : 'bad'}">${s.bufferOk ? `Buffer of ${inr(s.buffer)} met` : `Short ${inr(s.buffer - s.left)} for the ${inr(s.buffer)} buffer`}</span>
       </div>
-    </div>
+      <dl class="hero-stats">
+        <div><dt>Income</dt><dd>${money(s.income)}</dd></div>
+        <div><dt>Left in salary</dt><dd>${money(s.left)}</dd></div>
+      </dl>
+    </section>
     ${splitCard}
     <div class="card">
-      <div class="card-head"><h3>Transfer to each account this month</h3></div>
-      ${payRows ? `<ul class="pay-list">${payRows}<li class="pay-total"><span>Total to transfer</span><span class="pay-amount">${inr(s.totalTransfer)}</span></li></ul>` : '<p class="empty">No transfers yet. Add entries on the Entries page.</p>'}
-    </div>
-    <div class="card">
-      <div class="card-head"><h3>Monthly transfers in detail</h3><span class="subtotals">Select an account to see its entries</span></div>
-      ${s.accounts.length ? `<div class="scroll"><table class="transfers">
-        <thead><tr>
-          <th>Account</th><th class="num">Expenses per month</th><th class="num">Of which yearly, per month</th>
-          <th class="num">Savings per month</th><th class="num">Total to receive per month</th><th class="num">Yearly routed, per year</th>
-        </tr></thead>
-        <tbody>${accountRows}</tbody>
-        <tfoot><tr>
-          <td>Total</td><td class="num">${inr(s.totals.expenses)}</td><td class="num">${inr(s.totals.yearlyPerMonth)}</td>
-          <td class="num">${inr(s.totals.savings)}</td><td class="num">${inr(s.totals.total)}</td><td class="num">${inr(s.totals.yearlyRouted)}</td>
-        </tr></tfoot>
-      </table></div>` : '<p class="empty">No accounts yet. Add one on the Accounts page.</p>'}
+      <div class="card-head"><h3>Transfer to each account this month</h3><span class="subtotals">Select an account to see its entries</span></div>
+      ${payRows ? `<ul class="pay-list">${payRows}</ul>
+        <div class="pay-total"><span>Total to transfer<span class="pay-role">Includes ${inr(s.totals.yearlyPerMonth)} a month for yearly bills (${inr(s.totals.yearlyRouted)} a year)</span></span><span class="pay-amount">${money(s.totalTransfer)}</span></div>`
+        : `<p class="empty">${s.accounts.length ? 'No transfers yet. Add entries on the Entries page.' : 'No accounts yet. Add one on the Accounts page.'}</p>`}
     </div>
     <div class="card">
       <div class="card-head"><h3>Summary by heading</h3></div>
@@ -1197,6 +1202,9 @@ const actions = {
   'toggle-account'(id) {
     if (!S.open.delete(id)) S.open.add(id);
     render();
+    // The page is redrawn, so put focus back on the row that was selected
+    const row = document.querySelector(`[data-action="toggle-account"][data-id="${CSS.escape(id)}"]`);
+    if (row) row.focus();
   },
   'add-entry'(id) { openEntryDialog(null, id); },
   'edit-entry'(id) { openEntryDialog(S.data.entries.find(e => e.id === id)); },

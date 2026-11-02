@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.0 - 2026-11-02
+
+- Home leads with the total to transfer as one large figure, with income, money left and a buffer label underneath.
+- Each account in the transfer list has a coloured badge for its type. Select an account to see its monthly figures and entries.
+- The wide "Monthly transfers in detail" table is gone. Its figures now open inside the transfer list, so there is no sideways scrolling on phones.
+
 ## 1.4.0 - 2026-11-02
 
 - New look across the app, with softer cards, clearer type and icons in the navigation.
