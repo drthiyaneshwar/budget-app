@@ -3,10 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self'; connect-src https://api.github.com; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self'; connect-src https://api.github.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#1F3864">
 <title>Budget Planner</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root {
   --navy: #1F3864;
@@ -126,6 +128,9 @@ dialog h3 { margin-bottom: 12px; }
   .toast { bottom: 76px; }
   .kpis { grid-template-columns: repeat(2, 1fr); }
   .kpi-value { font-size: 1.2rem; }
+  .transfers { min-width: 640px; }
+  .transfers th:first-child, .transfers td:first-child { min-width: 132px; max-width: 150px; padding-right: 6px; }
+  .transfers .num { padding-left: 6px; padding-right: 8px; }
 
   /* Entry and editor tables become stacked rows */
   .stack thead { display: none; }
@@ -257,12 +262,14 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
 const SAVE_DELAY_MS = 400;
 const LS_CONFIG = 'budgetConfig';
+const LS_CACHE = 'budgetCache';
+const LS_PENDING = 'budgetPending';
 const ACCOUNT_TYPES = ['Income', 'Spending', 'Sinking', 'Savings'];
 const FREQUENCIES = ['Monthly', 'Quarterly', 'Yearly'];
 
@@ -373,7 +380,6 @@ const S = {
   data: null,
   sha: null,
   latest: null,   // newest encrypted file text
-  pending: false,
   syncing: null,
   page: 'home',
   open: new Set(),
@@ -434,6 +440,8 @@ function saveConfig() {
 
 function forgetDevice() {
   localStorage.removeItem(LS_CONFIG);
+  localStorage.removeItem(LS_CACHE);
+  localStorage.removeItem(LS_PENDING);
   location.reload();
 }
 
@@ -494,11 +502,21 @@ async function packData() {
   return JSON.stringify({ version: 1, salt: S.config.salt, iterations: S.config.iterations, ...blob });
 }
 
-function isPending() { return S.pending; }
-function setPending(value) { S.pending = value; }
-function stage(text) { S.latest = text; setPending(true); }
+function isPending() { return localStorage.getItem(LS_PENDING) === '1'; }
+
+function setPending(value) {
+  if (value) localStorage.setItem(LS_PENDING, '1');
+  else localStorage.removeItem(LS_PENDING);
+}
+
+function stage(text) {
+  S.latest = text;
+  localStorage.setItem(LS_CACHE, text);
+  setPending(true);
+}
 
 function syncNow() {
+  if (!navigator.onLine) return Promise.resolve();
   if (S.syncing) return S.syncing;
   S.syncing = (async () => {
     try {
@@ -508,7 +526,7 @@ function syncNow() {
         if (sent === S.latest) setPending(false);
       }
     } catch (error) {
-      toast(error instanceof GitHubError ? error.message : 'Could not reach GitHub. Your change is not saved yet.', true);
+      toast(error instanceof GitHubError ? error.message : 'Could not reach GitHub. Your change is saved on this device and will sync later.', true);
     } finally {
       S.syncing = null;
       updateFooter();
@@ -591,6 +609,8 @@ async function handleSetup(event) {
         throw new Error('That passcode does not open the budget in this repository.');
       }
       S.sha = file.sha;
+      S.latest = file.text;
+      localStorage.setItem(LS_CACHE, file.text);
       saveConfig();
       enterApp();
     } else {
@@ -661,9 +681,30 @@ async function openFile(file) {
 }
 
 async function loadBudget() {
-  const file = await getFile();
-  if (!file) throw new Error('The data file is missing from your repository.');
-  S.data = JSON.parse(await openFile(file));
+  const cached = localStorage.getItem(LS_CACHE);
+  const useCache = async () => { S.data = JSON.parse(await openFile({ sha: null, text: cached })); };
+
+  if (cached && (!navigator.onLine || isPending())) return useCache();
+  if (!navigator.onLine) throw new Error('You are offline and this device has no saved copy yet.');
+
+  let file;
+  try {
+    file = await getFile();
+  } catch (problem) {
+    if (!cached) throw problem;
+    await useCache();
+    toast(problem instanceof GitHubError ? problem.message : 'Could not reach GitHub. Showing the copy on this device.', true);
+    return;
+  }
+  if (file) {
+    S.data = JSON.parse(await openFile(file));
+    localStorage.setItem(LS_CACHE, S.latest);
+  } else if (cached) {
+    await useCache();
+    setPending(true);
+  } else {
+    throw new Error('The data file is missing from your repository.');
+  }
 }
 
 async function handleUnlock(event) {
@@ -685,6 +726,7 @@ async function handleUnlock(event) {
     await loadBudget();
     $('u-pass').value = '';
     enterApp();
+    syncNow();
   } catch (problem) {
     S.key = null;
     S.token = null;
@@ -698,8 +740,6 @@ async function handleUnlock(event) {
 async function lock() {
   if (saveTimer) await saveNow();
   if (S.syncing) await S.syncing;
-  if (isPending() && !await ask('Some changes are not saved to GitHub and will be lost if you lock now.', 'Lock anyway', true)) return;
-  setPending(false);
   S.key = S.token = S.data = S.sha = S.latest = null;
   S.open.clear();
   $('page').innerHTML = '';
@@ -730,7 +770,7 @@ function render() {
 }
 
 function updateFooter() {
-  const parts = [`Version ${APP_VERSION}`];
+  const parts = [`Version ${APP_VERSION}`, navigator.onLine ? 'Online' : 'Offline'];
   if (hasUnsavedWork()) parts.push('changes not yet synced');
   $('footer').textContent = parts.join(' · ');
 }
@@ -1099,6 +1139,9 @@ function start() {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden' && saveTimer) saveNow();
   });
+  window.addEventListener('online', () => { updateFooter(); syncNow(); });
+  window.addEventListener('offline', updateFooter);
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
   S.config = loadConfig();
   show(S.config ? 'screen-unlock' : 'screen-setup');

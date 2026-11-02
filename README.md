@@ -38,6 +38,12 @@ The file is plain JSON:
 
 Account type is `Income`, `Spending`, `Sinking` or `Savings`. Heading kind is `expense` or `savings`. Frequency is `Monthly`, `Quarterly` or `Yearly`.
 
+## Offline
+
+The app works without a connection once it has been opened online. An encrypted copy of your budget stays on the device, and changes made offline sync when the connection returns. The footer shows when changes are not yet synced.
+
+If two devices change the budget without syncing, the last one to save wins. The earlier version stays in the private repository's commit history.
+
 ## How the numbers work
 
 - Monthly equivalent: Monthly = amount, Quarterly = amount ÷ 3, Yearly = amount ÷ 12.
