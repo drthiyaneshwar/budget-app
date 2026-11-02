@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.0 - 2026-11-02
+
+- Headings can now be added and edited directly on the Entries page.
+- Adding a heading in Settings now asks for its name and kind first.
+
 ## 1.2.0 - 2026-11-02
 
 - Home now lists how much to transfer to each account this month, directly under the key figures.

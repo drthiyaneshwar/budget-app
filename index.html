@@ -244,6 +244,22 @@ dialog h3 { margin-bottom: 12px; }
   </form>
 </dialog>
 
+<dialog id="dlg-heading" aria-labelledby="heading-title">
+  <form id="heading-form" novalidate>
+    <h3 id="heading-title">Add heading</h3>
+    <label>Heading name <input id="h-name" required></label>
+    <label>Kind
+      <span class="hint">Choose Savings for money you are setting aside.</span>
+      <select id="h-kind"><option value="expense">Expense</option><option value="savings">Savings</option></select>
+    </label>
+    <p class="error" id="heading-error" role="alert"></p>
+    <div class="dlg-foot">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button class="btn primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="dlg-confirm" aria-labelledby="confirm-text">
   <p id="confirm-text"></p>
   <div class="dlg-foot">
@@ -267,7 +283,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -879,7 +895,10 @@ function renderEntries() {
     return `<div class="card">
       <div class="card-head">
         <div><h3>${esc(section.name)}</h3><div class="subtotals">${inr(monthly)} a month · ${inr(monthly * 12)} a year</div></div>
-        <button class="btn" data-action="add-entry" data-id="${esc(section.id)}">Add entry</button>
+        <div class="btn-row">
+          <button class="btn" data-action="edit-section" data-id="${esc(section.id)}" aria-label="Edit heading ${esc(section.name)}">Edit heading</button>
+          <button class="btn" data-action="add-entry" data-id="${esc(section.id)}" aria-label="Add entry to ${esc(section.name)}">Add entry</button>
+        </div>
       </div>
       ${entries.length ? `<table class="stack">
         <thead><tr><th>Item</th><th class="num">Amount</th><th>How often</th><th class="num">Per month</th><th>Account</th><th>Notes</th><th><span hidden>Actions</span></th></tr></thead>
@@ -888,9 +907,9 @@ function renderEntries() {
     </div>`;
   }).join('');
   $('page').innerHTML = `
-    <div class="page-head"><h2>Entries</h2></div>
+    <div class="page-head"><h2>Entries</h2><button class="btn primary" data-action="add-section">Add heading</button></div>
     ${!S.data.accounts.length ? '<div class="notice">Add an account on the Accounts page before adding entries.</div>' : ''}
-    ${cards || '<div class="card"><p class="empty">No headings yet. Add one in Settings.</p></div>'}`;
+    ${cards || '<div class="card"><p class="empty">No headings yet. Use Add heading to create one.</p></div>'}`;
 }
 
 function openEntryDialog(entry, sectionId) {
@@ -920,6 +939,27 @@ function handleEntrySubmit(event) {
   if (S.editing) Object.assign(S.data.entries.find(e => e.id === S.editing), values);
   else S.data.entries.push({ id: newId('ent'), ...values });
   $('dlg-entry').close();
+  render();
+  changed();
+}
+
+function openHeadingDialog(section) {
+  S.editingSection = section ? section.id : null;
+  $('heading-title').textContent = section ? 'Edit heading' : 'Add heading';
+  $('h-name').value = section ? section.name : '';
+  $('h-kind').value = section ? section.kind : 'expense';
+  $('heading-error').textContent = '';
+  $('dlg-heading').showModal();
+}
+
+function handleHeadingSubmit(event) {
+  event.preventDefault();
+  const name = $('h-name').value.trim();
+  if (!name) { $('heading-error').textContent = 'Enter the heading name.'; return; }
+  const kind = $('h-kind').value;
+  if (S.editingSection) Object.assign(S.data.sections.find(s => s.id === S.editingSection), { name, kind });
+  else S.data.sections.push({ id: newId('sec'), name, kind });
+  $('dlg-heading').close();
   render();
   changed();
 }
@@ -1096,11 +1136,8 @@ const actions = {
     render();
     changed();
   },
-  'add-section'() {
-    S.data.sections.push({ id: newId('sec'), name: 'New heading', kind: 'expense' });
-    render();
-    changed();
-  },
+  'add-section'() { openHeadingDialog(); },
+  'edit-section'(id) { openHeadingDialog(S.data.sections.find(s => s.id === id)); },
   async 'delete-section'(id) {
     const used = S.data.entries.filter(e => e.section === id).length;
     if (used) { toast(`This heading has ${entryCount(used)}. Move or delete them first.`, true); return; }
@@ -1143,6 +1180,7 @@ function start() {
   $('unlock-form').addEventListener('submit', handleUnlock);
   $('unlock-forget').addEventListener('click', confirmForget);
   $('entry-form').addEventListener('submit', handleEntrySubmit);
+  $('heading-form').addEventListener('submit', handleHeadingSubmit);
   $('confirm-ok').addEventListener('click', () => $('dlg-confirm').close('ok'));
   document.querySelectorAll('[data-close]').forEach(button => {
     button.addEventListener('click', () => button.closest('dialog').close());
