@@ -19,6 +19,8 @@ It is one web page (`index.html`) with no framework and no build step. It runs o
 - The key and the unlocked token stay in memory and are cleared when you lock the app.
 - The token needs only **Contents: read and write** on the private repository.
 
+- Settings has an option to open without the passcode on one device. It keeps the unlock key in that browser only, as a key the browser can use but cannot export. Anyone who can use that device can then open the budget, so only use it on a device with its own screen lock.
+
 There is no way to recover a forgotten passcode. Keep it somewhere safe.
 
 ## Starting data

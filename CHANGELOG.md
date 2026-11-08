@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.0 - 2026-11-08
+
+- New setting: Open without passcode on this device. When it is on, the app opens straight to your budget on that device.
+- Turning it on or off asks for your passcode. It applies only to the device where you turn it on.
+- It stays on after you change your passcode. Forget this device turns it off.
+
 ## 1.6.0 - 2026-11-08
 
 - When changes cannot sync, the footer now says why, for example an expired token or no connection.

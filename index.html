@@ -352,12 +352,25 @@ dialog h3 { margin-bottom: 12px; }
   </form>
 </dialog>
 
+<dialog id="dlg-remember" aria-labelledby="remember-title">
+  <form id="remember-form" novalidate>
+    <h3 id="remember-title">Open without passcode</h3>
+    <p class="small muted" id="remember-text"></p>
+    <label>Passcode <input id="r-pass" type="password" autocomplete="current-password" required></label>
+    <p class="error" id="remember-error" role="alert"></p>
+    <div class="dlg-foot">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button class="btn primary" id="remember-ok">Turn on</button>
+    </div>
+  </form>
+</dialog>
+
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script>
 'use strict';
 
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.7.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -477,6 +490,7 @@ const S = {
   latest: null,   // newest encrypted file text
   syncing: null,
   syncError: '',  // why the last sync failed, shown in the footer
+  remembered: false, // this device opens without the passcode
   page: 'home',
   open: new Set(),
   setup: null
@@ -536,11 +550,52 @@ function saveConfig() {
   localStorage.setItem(LS_CONFIG, JSON.stringify(S.config));
 }
 
-function forgetDevice() {
+async function forgetDevice() {
   localStorage.removeItem(LS_CONFIG);
   localStorage.removeItem(LS_CACHE);
   localStorage.removeItem(LS_PENDING);
+  await forgetRememberedKey();
   location.reload();
+}
+
+/* ---------- Open without passcode ----------
+   The unlock key is kept in this browser's IndexedDB. It is a non-extractable
+   CryptoKey, so it can be used here but never read out or copied. Nothing about
+   it is stored anywhere else. */
+
+const DEVICE_DB = 'budgetDevice';
+const REMEMBERED_KEY = 'unlock';
+
+function deviceStore(mode, run) {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DEVICE_DB, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore('keys');
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const db = request.result;
+      const tx = db.transaction('keys', mode);
+      const result = run(tx.objectStore('keys'));
+      tx.oncomplete = () => { db.close(); resolve(result.result); };
+      tx.onerror = tx.onabort = () => { db.close(); reject(tx.error); };
+    };
+  });
+}
+
+function getRememberedKey() {
+  return deviceStore('readonly', store => store.get(REMEMBERED_KEY)).catch(() => null);
+}
+
+function rememberKey(key) {
+  return deviceStore('readwrite', store => store.put(key, REMEMBERED_KEY));
+}
+
+function forgetRememberedKey() {
+  return deviceStore('readwrite', store => store.delete(REMEMBERED_KEY)).catch(() => {});
+}
+
+// Called whenever the passcode changes, so a remembered key stays current.
+async function refreshRememberedKey(key) {
+  if (S.remembered) await rememberKey(key).catch(() => { S.remembered = false; });
 }
 
 /* ---------- GitHub ---------- */
@@ -773,6 +828,7 @@ async function openFile(file) {
   if (envelope.salt === S.config.salt) return decryptText(S.key, envelope);
   const { key, text } = await askNewPasscode(envelope);
   S.key = key;
+  await refreshRememberedKey(key);
   S.config.salt = envelope.salt;
   S.config.iterations = envelope.iterations;
   S.config.token = await encryptText(key, S.token);
@@ -823,6 +879,7 @@ async function handleUnlock(event) {
       return;
     }
     S.key = key;
+    S.remembered = Boolean(await getRememberedKey());
     await loadBudget();
     $('u-pass').value = '';
     enterApp();
@@ -831,6 +888,35 @@ async function handleUnlock(event) {
     S.key = null;
     S.token = null;
     error.textContent = problem instanceof TypeError ? 'Could not reach GitHub. Check your connection.' : problem.message;
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Unlock';
+  }
+}
+
+// Opens the app straight away when this device has a remembered key.
+async function autoUnlock() {
+  const key = await getRememberedKey();
+  if (!key) return;
+  const button = $('unlock-btn');
+  button.disabled = true;
+  button.textContent = 'Opening…';
+  try {
+    try {
+      S.token = await decryptText(key, S.config.token);
+    } catch {
+      await forgetRememberedKey(); // no longer matches this device's settings
+      return;
+    }
+    S.key = key;
+    S.remembered = true;
+    await loadBudget();
+    enterApp();
+    syncNow();
+  } catch (problem) {
+    S.key = null;
+    S.token = null;
+    $('unlock-error').textContent = problem instanceof TypeError ? 'Could not reach GitHub. Check your connection.' : problem.message;
   } finally {
     button.disabled = false;
     button.textContent = 'Unlock';
@@ -1154,6 +1240,12 @@ function renderSettings() {
           <button class="btn">Replace token</button>
         </form>
         <hr class="divider">
+        <h3 style="margin-bottom:8px">Open without passcode on this device</h3>
+        <p class="small muted">${S.remembered
+          ? '<strong>On.</strong> This device opens straight to your budget. Anyone who can use this device can see it.'
+          : '<strong>Off.</strong> The app asks for your passcode every time it opens.'}</p>
+        <button class="btn" data-action="remember">${S.remembered ? 'Turn off' : 'Turn on'}</button>
+        <hr class="divider">
         <div class="btn-row">
           <button class="btn" data-action="backup">Download encrypted backup</button>
           <button class="btn" data-action="lock">Lock now</button>
@@ -1187,6 +1279,7 @@ async function handleChangePasscode(event) {
   S.config = { ...S.config, salt, iterations: PBKDF2_ITERATIONS, token: await encryptText(key, S.token) };
   S.key = key;
   saveConfig();
+  await refreshRememberedKey(key);
   await saveNow();
   $('pass-form').reset();
   toast('Passcode changed.');
@@ -1227,6 +1320,56 @@ async function confirmForget() {
     ? 'You have changes not yet synced to GitHub. Forgetting this device will lose them. Continue?'
     : 'This removes your token and settings from this browser. Your budget stays in GitHub.';
   if (await ask(message, 'Forget this device', true)) forgetDevice();
+}
+
+function openRememberDialog() {
+  const turningOn = !S.remembered;
+  $('remember-form').reset();
+  $('remember-error').textContent = '';
+  $('remember-title').textContent = turningOn ? 'Open without passcode' : 'Ask for passcode again';
+  $('remember-text').textContent = turningOn
+    ? 'This device will open straight to your budget without asking for the passcode. Only turn this on for a device that has its own screen lock. Enter your passcode to confirm.'
+    : 'This device will ask for your passcode every time the app opens. Enter your passcode to confirm.';
+  $('remember-ok').textContent = turningOn ? 'Turn on' : 'Turn off';
+  $('dlg-remember').showModal();
+}
+
+async function handleRememberSubmit(event) {
+  event.preventDefault();
+  const error = $('remember-error');
+  const button = $('remember-ok');
+  const label = button.textContent;
+  error.textContent = '';
+  button.disabled = true;
+  button.textContent = 'Checking…';
+  try {
+    try {
+      const key = await deriveKey($('r-pass').value, S.config.salt, S.config.iterations);
+      await decryptText(key, S.config.token);
+    } catch {
+      error.textContent = 'Wrong passcode.';
+      return;
+    }
+    if (S.remembered) {
+      await forgetRememberedKey();
+      S.remembered = false;
+      toast('This device will ask for the passcode.');
+    } else {
+      try {
+        await rememberKey(S.key);
+      } catch {
+        error.textContent = 'This browser could not save it. Private browsing may be turned on.';
+        return;
+      }
+      S.remembered = true;
+      toast('This device will open without the passcode.');
+    }
+    $('dlg-remember').close();
+    render();
+  } finally {
+    button.disabled = false;
+    button.textContent = label;
+  }
 }
 
 /* ---------- Page actions ---------- */
@@ -1274,6 +1417,7 @@ const actions = {
     changed();
   },
   backup: downloadBackup,
+  remember: openRememberDialog,
   lock,
   forget: confirmForget
 };
@@ -1307,6 +1451,7 @@ function start() {
   $('unlock-forget').addEventListener('click', confirmForget);
   $('entry-form').addEventListener('submit', handleEntrySubmit);
   $('heading-form').addEventListener('submit', handleHeadingSubmit);
+  $('remember-form').addEventListener('submit', handleRememberSubmit);
   $('confirm-ok').addEventListener('click', () => $('dlg-confirm').close('ok'));
   document.querySelectorAll('[data-close]').forEach(button => {
     button.addEventListener('click', () => button.closest('dialog').close());
@@ -1327,6 +1472,7 @@ function start() {
 
   S.config = loadConfig();
   show(S.config ? 'screen-unlock' : 'screen-setup');
+  if (S.config) autoUnlock();
 }
 
 start();
