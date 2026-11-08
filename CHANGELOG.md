@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.18.0 - 2026-11-08
+
+- New Export section in Settings. Choose what to export (everything, overview, entries, summary by heading, accounts, income sources, or bills for the next 12 months) and a format.
+- Formats: text for AI chatbots (tables with a short explanation, ready to paste), Excel (CSV file) and JSON.
+- Copy puts it on the clipboard; Download file saves it. The export is not encrypted.
+
 ## 1.17.1 - 2026-11-08
 
 - In Coming up, each month's main total now includes everything due. When a month has both kinds, Will pay and Set aside, if needed each show their own total underneath.

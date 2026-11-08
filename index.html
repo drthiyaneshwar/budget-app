@@ -536,7 +536,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.17.1';
+const APP_VERSION = '1.18.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -1795,6 +1795,28 @@ function renderSettings() {
     </div>
     ${accountsCard()}
     <div class="card">
+      <div class="card-head"><h3>Export</h3></div>
+      <div class="card-body">
+        <label>What to export
+          <select id="exp-what">
+            ${EXPORTS.map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}
+          </select>
+        </label>
+        <label>Format
+          <select id="exp-format">
+            <option value="md">Text for AI chatbots (best for analysis)</option>
+            <option value="csv">Excel (CSV file)</option>
+            <option value="json">JSON (raw data)</option>
+          </select>
+        </label>
+        <div class="btn-row">
+          <button type="button" class="btn primary" data-action="export-copy">Copy</button>
+          <button type="button" class="btn" data-action="export-download">Download file</button>
+        </div>
+        <p class="small muted" style="margin:12px 0 0">The export is not encrypted. Keep the file private and delete it when you are done. Before pasting into a chatbot, think about removing names you would rather not share.</p>
+      </div>
+    </div>
+    <div class="card">
       <div class="card-head"><h3>Data and security</h3></div>
       <div class="card-body">
         <form id="pass-form" novalidate>
@@ -1884,6 +1906,124 @@ async function downloadBackup() {
   const link = document.createElement('a');
   link.href = url;
   link.download = `budget-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* ---------- Export ---------- */
+
+const EXPORTS = [
+  ['all', 'Everything'],
+  ['overview', 'Overview: income, transfers and totals'],
+  ['entries', 'All entries'],
+  ['headings', 'Summary by heading'],
+  ['accounts', 'Accounts and monthly transfers'],
+  ['income', 'Income sources'],
+  ['bills', 'Yearly and quarterly bills, next 12 months']
+];
+
+// Each table: a title, column names, and rows of plain values (numbers stay numbers)
+function exportTables(what) {
+  const s = summarize(S.data);
+  const sectionOf = id => S.data.sections.find(section => section.id === id);
+  const accountOf = id => S.data.accounts.find(account => account.id === id);
+  const groupOf = e => (e.setAside ? 'Set aside' : (sectionOf(e.section) || {}).kind === 'savings' ? 'Savings and investments' : 'Expenses');
+  const round = n => Math.round(n * 100) / 100;
+  const counted = S.data.entries.filter(e => accountOf(e.account));
+  const monthlyFor = group => round(counted.filter(e => groupOf(e) === group).reduce((t, e) => t + monthlyEquivalent(e), 0));
+  const tables = {
+    overview: () => ({
+      title: 'Overview (per month, in rupees)',
+      columns: ['Item', 'Amount'],
+      rows: [
+        ['Monthly income', s.income],
+        ['Total to transfer', round(s.totalTransfer)],
+        ['Left in salary', round(s.left)],
+        ['Buffer to keep in salary', s.buffer],
+        ['Expenses', monthlyFor('Expenses')],
+        ['Savings and investments', monthlyFor('Savings and investments')],
+        ['Set aside, may not spend', monthlyFor('Set aside')]
+      ]
+    }),
+    entries: () => ({
+      title: 'Entries',
+      columns: ['Heading', 'Group', 'Item', 'Amount', 'How often', 'Due month', 'Per month', 'Per year', 'Account', 'Notes'],
+      rows: S.data.entries.map(e => [
+        (sectionOf(e.section) || {}).name || 'No heading', groupOf(e), e.item, Number(e.amount) || 0, e.frequency,
+        dueText(e), round(monthlyEquivalent(e)), round(monthlyEquivalent(e) * 12), (accountOf(e.account) || {}).name || 'Deleted account', e.notes || ''
+      ])
+    }),
+    headings: () => {
+      const rows = [];
+      for (const group of ['Expenses', 'Savings and investments', 'Set aside']) {
+        for (const section of S.data.sections) {
+          const items = counted.filter(e => e.section === section.id && groupOf(e) === group);
+          if (!items.length) continue;
+          const monthly = items.reduce((t, e) => t + monthlyEquivalent(e), 0);
+          rows.push([group, section.name, items.length, round(monthly), round(monthly * 12)]);
+        }
+      }
+      return { title: 'Summary by heading', columns: ['Group', 'Heading', 'Items', 'Per month', 'Per year'], rows };
+    },
+    accounts: () => ({
+      title: 'Accounts',
+      columns: ['Account', 'Role', 'Type', 'Transfer per month', 'Balance today'],
+      rows: s.accounts.map(row => [row.account.name, row.account.role || '', row.account.type, round(row.total), row.account.balance ?? ''])
+    }),
+    income: () => {
+      const sources = S.data.incomeSources || [];
+      return {
+        title: 'Income sources (per month)',
+        columns: ['Source', 'Amount'],
+        rows: sources.length ? [...sources.map(x => [x.name, Number(x.amount) || 0]), ['Total', s.income]] : [['Monthly income', s.income]]
+      };
+    },
+    bills: () => ({
+      title: 'Yearly and quarterly bills, next 12 months',
+      columns: ['Month', 'Item', 'Account', 'Amount', 'Set aside'],
+      rows: upcomingMonths(12).flatMap(m => counted.filter(e => dueMonths(e).includes(m.month))
+        .map(e => [m.label, e.item, (accountOf(e.account) || {}).name, Number(e.amount) || 0, e.setAside ? 'Yes' : 'No']))
+    })
+  };
+  const keys = what === 'all' ? ['overview', 'income', 'accounts', 'headings', 'entries', 'bills'] : [what];
+  return keys.map(key => tables[key]());
+}
+
+function exportText(what, format) {
+  const tables = exportTables(what);
+  const date = new Date().toISOString().slice(0, 10);
+  if (format === 'json') {
+    return JSON.stringify({ exported: date, currency: 'INR', tables: tables.map(t => ({ title: t.title, rows: t.rows.map(r => Object.fromEntries(t.columns.map((c, i) => [c, r[i]]))) })) }, null, 2);
+  }
+  if (format === 'csv') {
+    const cell = v => (typeof v === 'number' ? String(v) : `"${String(v ?? '').replace(/"/g, '""')}"`);
+    return tables.map(t => [...(tables.length > 1 ? [cell(t.title)] : []), t.columns.map(cell).join(','), ...t.rows.map(r => r.map(cell).join(','))].join('\r\n')).join('\r\n\r\n');
+  }
+  // Text for AI chatbots: a short intro and Markdown tables, amounts in rupees
+  const md = (v, column) => (typeof v === 'number' ? (column === 'Items' ? String(v) : inr(v)) : String(v ?? '').replace(/\|/g, '/').replace(/\n/g, ' '));
+  const intro = `My monthly budget, exported on ${date}. Amounts are in Indian rupees (₹). "Per month" spreads yearly and quarterly costs evenly over the year. "Set aside" means money kept ready for a cost that may not happen.`;
+  return [intro, ...tables.map(t => [`## ${t.title}`, '', `| ${t.columns.join(' | ')} |`, `| ${t.columns.map(() => '---').join(' | ')} |`, ...t.rows.map(r => `| ${r.map((v, i) => md(v, t.columns[i])).join(' | ')} |`)].join('\n'))].join('\n\n');
+}
+
+async function exportData(mode) {
+  const what = $('exp-what').value;
+  const format = $('exp-format').value;
+  const text = exportText(what, format);
+  if (mode === 'copy') {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast('Copied. Paste it into your chatbot or spreadsheet.');
+    } catch {
+      toast('This browser would not copy. Use Download file instead.', true);
+    }
+    return;
+  }
+  const types = { csv: 'text/csv', json: 'application/json', md: 'text/markdown' };
+  const blob = new Blob([format === 'csv' ? '\ufeff' + text : text], { type: `${types[format]};charset=utf-8` });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `budget-${what}-${new Date().toISOString().slice(0, 10)}.${format === 'md' ? 'md' : format}`;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
@@ -2014,6 +2154,8 @@ const actions = {
     changed();
   },
   backup: downloadBackup,
+  'export-copy'() { exportData('copy'); },
+  'export-download'() { exportData('download'); },
   remember: openRememberDialog,
   lock,
   forget: confirmForget

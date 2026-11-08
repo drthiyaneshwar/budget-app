@@ -64,6 +64,10 @@ If two devices change the budget at the same time, the app combines the changes.
 - Left in salary = income − total to transfer. The buffer check passes when left ≥ buffer.
 - On Home, "Of which yearly" covers expense entries with Yearly frequency only, and "Yearly routed" is that same money per year.
 
+## Export
+
+Settings has an Export section. It can copy or download any part of the budget as text for AI chatbots (Markdown tables), as a CSV file for Excel, or as JSON. Exports are not encrypted, so keep them private.
+
 ## Backups
 
 Settings has a button to download an encrypted backup. It has the same format as `budget-data.json`. To restore it, replace `budget-data.json` in the private repository with the backup file, then unlock the app with the passcode that was in use when the backup was made.
