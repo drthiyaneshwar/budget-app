@@ -46,6 +46,10 @@ An entry can also have `"setAside": true` for money kept ready for a cost that m
 
 Account type is `Income`, `Spending`, `Sinking` or `Savings`. Heading kind is `expense` or `savings`. Frequency is `Monthly`, `Quarterly` or `Yearly`.
 
+## Example budget
+
+To show someone how the app works, open `index.html?example`, or select Try the example budget on the setup screen. It loads a made-up budget of ₹25,000 a month with three bank accounts, monthly, quarterly and yearly entries, and savings. Nothing is saved or sent to GitHub, and it does not touch a budget already set up on that device.
+
 ## Appearance
 
 Settings has a Theme choice: Same as device, Normal (light) or Dark. It is saved in this browser only.

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.27.0 - 2026-11-08
+
+- New example budget to show a friend how the app works, with no GitHub account or passcode. Open it with Try the example budget on the setup screen, or with a link ending in `?example`.
+- The example has ₹25,000 a month of income and three bank accounts: a salary account for daily spending, a bills account for yearly and quarterly bills, and a savings account. It includes common monthly entries, quarterly and yearly bills with due months, a set-aside cost, and savings, so every Home card has something to show.
+- Changes in the example are never saved, and reloading starts it fresh. Leave the example returns to the setup or unlock screen.
+
 ## 1.26.0 - 2026-11-08
 
 - On a heading's page, the Per month column is gone. Yearly and quarterly entries show their monthly share in small text under How often instead. Monthly entries show only their amount.
