@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.35.0 - 2026-11-08
+
+- Earnings: new Income by date row opens its own page, with a table of every day's work (type, reads, bill, TDS, what you get and the month it is paid), grouped by month, newest first.
+- Money coming in now opens on select. Its heading shows the next payment, and the nearest payment is listed first.
+
 ## 1.34.0 - 2026-11-08
 
 - Income sources in Settings each have a TDS % box. Monthly income then counts what reaches your account after TDS, and the total also shows the amount before TDS.

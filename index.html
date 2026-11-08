@@ -290,6 +290,7 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .earn-days { list-style: none; margin: 0; padding: 0; }
 .earn-days li { display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
 .earn-days li:last-child { border-bottom: 0; }
+.earn-date-table tfoot td { font-weight: 600; background: var(--card-raised); }
 .earn-amt { display: flex; flex-direction: column; align-items: flex-end; }
 .earn-day { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .earn-pay { list-style: none; margin: 0; padding: 0; }
@@ -413,6 +414,7 @@ dialog h3 { margin-bottom: 12px; }
   .group-head { padding-left: 12px; }
   .h-entries { margin-left: 12px; }
   .due-month { padding: 12px; grid-template-columns: 1fr; }
+  .earn-date-table tfoot { display: none; } /* the month heading already shows the totals */
   .expect { grid-template-columns: 1fr; }
   .expect-month + .expect-month { border-left: 0; border-top: 1px solid var(--line); }
   .earn-days li { flex-wrap: wrap; gap: 4px 12px; }
@@ -610,7 +612,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.34.0';
+const APP_VERSION = '1.35.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -1350,11 +1352,11 @@ function render() {
   syncIncome();
   document.querySelectorAll('.tab').forEach(tab => {
     // The calculator page belongs to Settings, and a heading's page to Entries
-    const current = { calculator: 'settings', heading: 'entries' }[S.page] || S.page;
+    const current = { calculator: 'settings', heading: 'entries', 'earn-days': 'earnings' }[S.page] || S.page;
     if (tab.dataset.page === current) tab.setAttribute('aria-current', 'page');
     else tab.removeAttribute('aria-current');
   });
-  ({ home: renderHome, earnings: renderEarnings, entries: renderEntries, heading: renderHeading, settings: renderSettings, calculator: renderCalculator })[S.page]();
+  ({ home: renderHome, earnings: renderEarnings, 'earn-days': renderEarnDays, entries: renderEntries, heading: renderHeading, settings: renderSettings, calculator: renderCalculator })[S.page]();
   updateFooter();
 }
 
@@ -1524,7 +1526,13 @@ function renderEarnings() {
     row.parts.set(day.type, part);
     byPay.set(key, row);
   }
-  const payRows = [...byPay.values()].sort((a, b) => b.key.localeCompare(a.key));
+  const nowKey = monthKey(today);
+  const payRows = [...byPay.values()].sort((a, b) => {
+    const aFuture = a.key >= nowKey, bFuture = b.key >= nowKey;
+    if (aFuture !== bFuture) return aFuture ? -1 : 1;
+    return aFuture ? a.key.localeCompare(b.key) : b.key.localeCompare(a.key);
+  });
+  const payOpen = S.open.has('earn-pay');
   const thisMonth = m.log.filter(day => day.date.startsWith(monthKey(today)));
   const thisMonthAmount = thisMonth.reduce((t, day) => t + netOf(day), 0);
   const recent = [...m.log].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 40);
@@ -1551,12 +1559,20 @@ function renderEarnings() {
       </form>
     </div>` : ''}
     <div class="card">
-      <div class="card-head"><h3>Money coming in</h3><span class="subtotals">This month's work so far: ${inr(thisMonthAmount)}${m.types.some(t => Number(t.tds)) ? ' after TDS' : ''}</span></div>
-      ${payRows.length ? `<ul class="earn-pay">${payRows.map(row => `<li>
+      <button class="card-head summary-toggle" data-action="open-earn-days">
+        <span><span class="summary-title">Income by date</span><span class="subtotals">Every day's work in a table, month by month</span></span>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+    <div class="card">
+      ${toggleHead('earn-pay', 'Money coming in', payRows.length
+        ? `Next: ${inr(payRows[0].amount)} in ${esc(monthLabel(payRows[0].key))} · this month's work so far ${inr(thisMonthAmount)}`
+        : 'Nothing logged yet', payOpen)}
+      ${!payOpen ? '' : payRows.length ? `<ul class="earn-pay" id="earn-pay">${payRows.map(row => `<li>
           <div class="earn-pay-head"><span>Paid in ${esc(monthLabel(row.key))}</span><strong>${inr(row.amount)}</strong></div>
           ${row.tds > 0.5 ? `<div class="earn-pay-part muted"><span>After ${inr(row.tds)} TDS</span></div>` : ''}
           ${[...row.parts.entries()].map(([type, part]) => `<div class="earn-pay-part"><span>${esc(typeName(type))} <span class="muted">· ${part.reads === 1 ? '1 read' : `${part.reads} reads`}, work in ${esc(monthLabel(part.work))}</span></span><span class="num">${inr(part.amount)}</span></div>`).join('')}
-        </li>`).join('')}</ul>` : '<p class="empty">No work logged yet.</p>'}
+        </li>`).join('')}</ul>` : '<p class="empty" id="earn-pay">No work logged yet.</p>'}
     </div>
     <div class="card">
       ${toggleHead('earn-log', 'Work logged', `${m.log.length === 1 ? '1 entry' : `${m.log.length} entries`} · latest first`, logOpen)}
@@ -1601,6 +1617,47 @@ function renderEarnings() {
   $('earn-reads').addEventListener('input', preview);
   if ($('earn-amount')) $('earn-amount').addEventListener('input', preview);
   preview();
+}
+
+// Earnings: every day's work in a table, grouped by month, newest first
+function renderEarnDays() {
+  const m = moon();
+  const typeName = id => (typeOf(id) || {}).name || 'Deleted type';
+  const dayLabel = date => new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', weekday: 'short' }).format(new Date(date + 'T00:00:00'));
+  const months = new Map();
+  for (const day of [...m.log].sort((a, b) => b.date.localeCompare(a.date))) {
+    const key = day.date.slice(0, 7);
+    if (!months.has(key)) months.set(key, []);
+    months.get(key).push(day);
+  }
+  const anyTds = m.log.some(day => Number(day.tds));
+  const sum = (list, f) => list.reduce((t, day) => t + f(day), 0);
+  $('page').innerHTML = `
+    <button type="button" class="btn link back-link" data-action="close-earn-days">‹ Back to Earnings</button>
+    <div class="page-head"><div><h2>Income by date</h2><div class="page-sub">Newest first</div></div></div>
+    ${months.size ? [...months.entries()].map(([key, days]) => `<div class="card">
+      <div class="card-head"><h3>${esc(monthLabel(key))}</h3><span class="subtotals">${sum(days, d => Number(d.reads) || 0)} reads · ${inr(sum(days, netOf))}${anyTds ? ' after TDS' : ''}</span></div>
+      <table class="stack earn-date-table">
+        <thead><tr><th>Date</th><th>Type</th><th class="num">Reads</th><th class="num">Bill</th>${anyTds ? '<th class="num">TDS</th>' : ''}<th class="num">${anyTds ? 'You get' : 'Amount'}</th><th>Paid in</th></tr></thead>
+        <tbody>${days.map(day => `<tr>
+          <td class="title">${esc(dayLabel(day.date))}</td>
+          <td data-label="Type">${esc(typeName(day.type))}</td>
+          <td class="num" data-label="Reads">${Number(day.reads) || 0}</td>
+          <td class="num" data-label="Bill">${inr(Number(day.amount) || 0)}</td>
+          ${anyTds ? `<td class="num" data-label="TDS">${Number(day.tds) ? `${inr((Number(day.amount) || 0) - netOf(day))} (${Number(day.tds)}%)` : '–'}</td>` : ''}
+          <td class="num" data-label="${anyTds ? 'You get' : 'Amount'}"><strong>${inr(netOf(day))}</strong></td>
+          <td data-label="Paid in">${esc(monthLabel(payMonth(day)))}</td>
+        </tr>`).join('')}</tbody>
+        <tfoot><tr>
+          <td>Total</td><td class="hide-phone"></td>
+          <td class="num">${sum(days, d => Number(d.reads) || 0)}</td>
+          <td class="num">${inr(sum(days, d => Number(d.amount) || 0))}</td>
+          ${anyTds ? `<td class="num">${inr(sum(days, d => (Number(d.amount) || 0) - netOf(d)))}</td>` : ''}
+          <td class="num"><strong>${inr(sum(days, netOf))}</strong></td><td class="hide-phone"></td>
+        </tr></tfoot>
+      </table>
+    </div>`).join('') : '<div class="card"><p class="empty">No work logged yet. Add work on the Earnings page.</p></div>'}`;
+  window.scrollTo(0, 0);
 }
 
 function handleEarnSubmit(event) {
@@ -2709,6 +2766,8 @@ const actions = {
   },
   backup: downloadBackup,
   'open-calculator'() { go('calculator'); },
+  'open-earn-days'() { go('earn-days'); },
+  'close-earn-days'() { go('earnings'); },
   'open-heading'(id) { S.heading = id; go('heading'); },
   'close-heading'() { go('entries'); },
   'close-calculator'() { go('settings'); },
