@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.32.0 - 2026-11-08
+
+- Work types can have a TDS percentage. When you add work, the app shows the bill and the amount after TDS.
+- Money coming in and Expected income on Home use the amount after TDS, and show how much TDS was taken.
+- Work already logged keeps the TDS it was added with.
+
 ## 1.31.0 - 2026-11-08
 
 - Earnings now has work types. Each type is either a fixed pay per read, which you can change, or asks for the pay each time you add work. Each type has its own pay delay in months.
