@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.1 - 2026-11-08
+
+- Home is back to the earlier scrolling layout from 2.0.1. Everything else is unchanged.
+
 ## 2.1.0 - 2026-11-08
 
 - Home is now a dashboard instead of one long page. The top card shows total to transfer, income, left in salary, the buffer check and the income bar.
