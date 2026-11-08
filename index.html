@@ -241,13 +241,6 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .due-note { margin: 12px 16px 0; }
 .due-aside { margin-top: 8px; padding: 8px 10px; max-width: 520px; background: var(--aside-bg); border-radius: var(--radius-sm); }
 .due-aside-head { display: flex; justify-content: space-between; gap: 12px; color: var(--aside); font-size: .8125rem; font-weight: 700; margin-bottom: 2px; }
-.check-list { max-width: none; padding: 4px 12px 8px; }
-.check-row .chip { flex: none; font-size: .75rem; }
-.check-detail { padding: 0 4px 12px 28px; }
-.check-table th, .check-table td { padding: 7px 8px; font-size: .875rem; vertical-align: top; }
-.check-bills { display: block; color: var(--muted); font-size: .8125rem; }
-.check-table tr.is-now td { background: var(--accent-soft); }
-.chip.neutral { background: var(--accent-soft); color: var(--accent); }
 .heading-head h2 { font-size: 1.5rem; }
 .heading-head .kind-tag { font-size: .75rem; }
 .heading-actions { margin-bottom: 16px; }
@@ -360,10 +353,6 @@ dialog h3 { margin-bottom: 12px; }
   .group.aside { grid-column: 1 / -1; }
   .group-head { padding-left: 12px; }
   .h-entries { margin-left: 12px; }
-  .check-row { flex-wrap: wrap; }
-  .check-row .h-name { flex: 1 1 calc(100% - 30px); }
-  .check-row .chip { margin-left: 24px; }
-  .check-detail { padding-left: 4px; }
   .due-month { padding: 12px; grid-template-columns: 1fr; }
   .income-table thead { display: none; }
   .income-table tr { display: grid; grid-template-columns: 1fr auto; gap: 6px 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
@@ -555,7 +544,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.26.0';
+const APP_VERSION = '1.26.1';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -1347,32 +1336,6 @@ function upcomingMonths(count) {
   });
 }
 
-/* How much an account should hold at the start of each month, after that
-   month's transfer arrives and before any bill is paid. Each dated bill builds
-   up by its monthly share since it was last paid: a yearly bill holds 1/12 of
-   its amount the month after it is paid, 2/12 the month after, and the full
-   amount in its due month. A quarterly bill works the same over 3 months. */
-function targetBalances(account) {
-  const dated = S.data.entries.filter(e => e.account === account.id && dueMonths(e).length);
-  if (!dated.length) return null;
-  const months = upcomingMonths(12).map(m => {
-    let target = 0;
-    for (const e of dated) {
-      const cycle = e.frequency === 'Quarterly' ? 3 : 12;
-      const due = dueMonths(e)[0];
-      const built = ((m.month - due - 1) % cycle + cycle) % cycle + 1; // shares saved, 1 to cycle
-      target += monthlyEquivalent(e) * built;
-    }
-    const bills = dated.filter(e => dueMonths(e).includes(m.month));
-    const pay = bills.reduce((total, e) => total + (Number(e.amount) || 0), 0);
-    return { ...m, target, bills, pay };
-  });
-  const hasBalance = account.balance !== undefined && account.balance !== null && account.balance !== '';
-  const now = months[0].target;
-  const gap = hasBalance ? (Number(account.balance) || 0) - now : null;
-  return { account, months, hasBalance, now, gap };
-}
-
 // A list of headings with their monthly total. Selecting a heading shows its entries.
 // `key` keeps each list's open headings separate (for example per account).
 function headingTree(entries, key) {
@@ -1622,43 +1585,10 @@ function billsHtml() {
     ? `<div class="notice due-note">${undated.length === 1 ? '1 yearly or quarterly entry has' : `${undated.length} yearly or quarterly entries have`} no due month yet: ${undated.map(e => esc(e.item)).join(', ')}. Add one with Edit on the Entries page.</div>`
     : '';
 
-  const targets = S.data.accounts.map(targetBalances).filter(Boolean).map(plan => {
-    const id = `target-${plan.account.id}`;
-    const isOpen = S.open.has(id);
-    let status = `<span class="chip neutral">Should have ${inr(plan.now)} now</span>`;
-    if (plan.hasBalance && plan.gap < -0.5) status = `<span class="chip bad">${inr(-plan.gap)} short now</span>`;
-    else if (plan.hasBalance) status = '<span class="chip good">On track</span>';
-    return `<li>
-      <button class="h-row check-row" data-action="toggle-group" data-id="${esc(id)}" aria-expanded="${isOpen}" aria-controls="${esc(id)}">
-        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
-        <span class="h-name">${esc(plan.account.name)}</span>
-        ${status}
-      </button>
-      ${isOpen ? `<div class="check-detail" id="${esc(id)}">
-        <p class="small muted">${plan.hasBalance
-          ? `You entered a balance of ${inr(Number(plan.account.balance) || 0)}. It should be ${inr(plan.now)} this month${plan.gap < -0.5 ? `, so add ${inr(-plan.gap)} once to catch up` : plan.gap > 0.5 ? `, so you have ${inr(plan.gap)} extra` : ''}.`
-          : 'Enter the balance today in Settings, under Accounts, to see if you are on track.'}
-          Amounts are for the start of each month, after that month's transfer and before bills are paid.</p>
-        <table class="check-table">
-          <thead><tr><th>Month</th><th class="num">Should have</th><th class="num">Bills paid</th></tr></thead>
-          <tbody>${plan.months.map((m, i) => `<tr class="${i === 0 ? 'is-now' : ''}">
-            <td>${esc(m.label)}${m.bills.length ? `<span class="check-bills">${m.bills.map(e => esc(e.item)).join(', ')}</span>` : ''}</td>
-            <td class="num"><strong>${inr(m.target)}</strong></td>
-            <td class="num">${m.pay ? inr(m.pay) : '<span class="muted">None</span>'}</td>
-          </tr>`).join('')}</tbody>
-        </table>
-      </div>` : ''}
-    </li>`;
-  }).join('');
-
   return `<div class="card">
       <div class="card-head"><h3>Coming up</h3><span class="subtotals">Yearly and quarterly bills, next 3 months</span></div>
       ${undatedNote}
       <ul class="due-list">${soon}</ul>
-    </div>
-    <div class="card">
-      <div class="card-head"><h3>How much each account should hold</h3><span class="subtotals">At the start of each month</span></div>
-      <ul class="h-tree check-list">${targets}</ul>
     </div>`;
 }
 
