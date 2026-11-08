@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.2 - 2026-11-08
+
+- Income by type lists just the type names. Select one to see its months.
+
 ## 2.1.1 - 2026-11-08
 
 - Home is back to the earlier scrolling layout from 2.0.1. Everything else is unchanged.
