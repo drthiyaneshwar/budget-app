@@ -8,6 +8,9 @@
 <meta name="theme-color" content="#1F3864">
 <title>Budget Planner</title>
 <link rel="manifest" href="manifest.json">
+<script>
+try { const t = localStorage.getItem('budgetTheme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
+</script>
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root {
@@ -42,8 +45,9 @@
   --radius: 14px;
   --radius-sm: 9px;
 }
+/* Dark colours: follow the device unless a theme is chosen in Settings */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --accent: #A9C1EE;
     --accent-soft: #24304A;
     --on-accent: #101725;
@@ -71,6 +75,35 @@
     --shadow: 0 1px 2px rgba(0, 0, 0, .3);
   }
 }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --accent: #A9C1EE;
+  --accent-soft: #24304A;
+  --on-accent: #101725;
+  --bg: #10141C;
+  --card: #1A202B;
+  --card-raised: #212835;
+  --text: #E9EDF4;
+  --muted: #A1ACBD;
+  --line: #2E3644;
+  --field: #141923;
+  --field-line: #475164;
+  --good: #5FD09A;
+  --good-bg: #173427;
+  --bad: #FF9E96;
+  --bad-bg: #3D1E1C;
+  --warn-bg: #3A2C10;
+  --warn: #F2CF87;
+  --seg-expense: #5C8BE6;
+  --seg-saving: #1A9E8C;
+  --exp: #FF9E96;
+  --exp-bg: #3A1F1D;
+  --sav: #6FD49A;
+  --sav-bg: #16301F;
+  --seg-left: #C4872A;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3);
+}
+:root[data-theme="light"] { color-scheme: light; }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
@@ -158,19 +191,9 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .group-head { position: relative; padding-right: 34px; }
 .group-head .chev { position: absolute; top: 14px; right: 10px; color: var(--g); }
 .group-head[aria-expanded="true"] .chev { transform: rotate(180deg); }
-.g-sub-inline { font-size: .8125rem; color: var(--muted); }
-.g-entries { list-style: none; margin: 6px 0 0; padding: 6px 0 0; border-top: 1px dashed var(--line); }
-.g-entries li { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; border: 0; font-size: .8125rem; }
-.g-entries .num { flex: none; }
 .group-title { display: block; color: var(--g); font-size: .95rem; font-weight: 650; line-height: 1.25; }
 .group-total { font-size: 1.35rem; font-weight: 700; color: var(--g); font-variant-numeric: tabular-nums; margin-top: 2px; white-space: nowrap; }
 .group-total small { display: block; font-size: .75rem; font-weight: 500; color: var(--muted); white-space: normal; }
-.group-list { list-style: none; margin: 0; padding: 0; }
-.group-list > li { padding: 10px 14px; border-bottom: 1px solid var(--line); }
-.group-list > li:last-child { border-bottom: 0; }
-.g-name { display: block; font-weight: 600; overflow-wrap: anywhere; }
-.g-amt { display: block; font-variant-numeric: tabular-nums; }
-.g-sub { display: block; font-size: .8125rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .group .empty { padding: 14px; font-size: .875rem; }
 .summary-toggle { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--line); text-align: left; cursor: pointer; flex-wrap: nowrap; }
 .summary-toggle[aria-expanded="false"] { border-bottom: 0; }
@@ -214,11 +237,26 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .chev { width: 18px; height: 18px; flex: none; color: var(--muted); transition: transform .15s; }
 .pay-row[aria-expanded="true"] .chev { transform: rotate(180deg); }
 .pay-detail { padding: 4px 16px 14px 66px; }
+
+/* Headings that open to show their entries */
+.h-tree { list-style: none; margin: 0; padding: 0; max-width: 480px; }
+.h-tree > li + li { border-top: 1px solid var(--line); }
+.h-row { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 8px 4px; background: none; border: 0; text-align: left; cursor: pointer; border-radius: 6px; }
+.h-row:hover { background: var(--card-raised); }
+.h-row .chev { width: 16px; height: 16px; }
+.h-row[aria-expanded="true"] .chev { transform: rotate(90deg); }
+.h-name { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.h-count { display: inline-block; min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--card-raised); border: 1px solid var(--line); color: var(--muted); font-size: .75rem; font-weight: 600; text-align: center; vertical-align: 1px; }
+.h-amt { flex: none; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.h-entries { list-style: none; margin: 0 0 8px 28px; padding: 0 0 0 10px; border-left: 2px solid var(--line); }
+.h-entries li { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 4px 4px 4px 0; font-size: .875rem; }
+.h-entries .h-amt { font-weight: 500; }
+.h-item { min-width: 0; overflow-wrap: anywhere; }
+.group-body { padding: 6px 10px 10px; }
+.group-body .h-entries { margin-left: 8px; }
 .pay-figures { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px 16px; margin: 0 0 10px; padding: 10px 12px; background: var(--card-raised); border-radius: var(--radius-sm); }
 .pay-figures dt { font-size: .75rem; color: var(--muted); }
 .pay-figures dd { margin: 1px 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
-.pay-entries { list-style: none; margin: 0; padding: 0; }
-.pay-entries li { display: flex; justify-content: space-between; gap: 16px; padding: 4px 0; font-size: .875rem; }
 .pay-total { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 16px; background: var(--accent-soft); font-weight: 700; }
 
 /* Tables */
@@ -252,9 +290,14 @@ dialog h3 { margin-bottom: 12px; }
   .toast { bottom: 84px; }
   .hero { padding: 16px; }
   .groups { gap: 10px; }
-  .group-head, .group-list > li { padding-left: 12px; padding-right: 12px; }
-  .g-entries li { flex-direction: column; gap: 0; }
-  .g-entries .num { text-align: left; }
+  .group-head { padding-left: 12px; }
+  .h-entries { margin-left: 12px; }
+  .group-body { padding: 4px 6px 8px; }
+  .group-body .h-row { flex-wrap: wrap; gap: 2px 6px; padding: 8px 2px; }
+  .group-body .h-name { flex: 1 1 calc(100% - 24px); }
+  .group-body .h-row .h-amt { flex-basis: 100%; padding-left: 22px; }
+  .group-body .h-entries { margin-left: 8px; padding-left: 8px; }
+  .group-body .h-entries li { flex-direction: column; align-items: flex-start; gap: 0; }
   .group-total { font-size: 1.15rem; }
   .type-table .col-items { display: none; }
   .type-table th, .type-table td { padding: 9px 10px; font-size: .875rem; }
@@ -426,7 +469,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.8.0';
+const APP_VERSION = '1.9.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -434,6 +477,7 @@ const SAVE_DELAY_MS = 400;
 const LS_CONFIG = 'budgetConfig';
 const LS_CACHE = 'budgetCache';
 const LS_PENDING = 'budgetPending';
+const LS_THEME = 'budgetTheme';
 const ACCOUNT_TYPES = ['Income', 'Spending', 'Sinking', 'Savings'];
 const FREQUENCIES = ['Monthly', 'Quarterly', 'Yearly'];
 
@@ -652,6 +696,21 @@ function forgetRememberedKey() {
 // Called whenever the passcode changes, so a remembered key stays current.
 async function refreshRememberedKey(key) {
   if (S.remembered) await rememberKey(key).catch(() => { S.remembered = false; });
+}
+
+/* ---------- Theme (this device only) ---------- */
+
+function getTheme() {
+  try { return localStorage.getItem(LS_THEME) || 'system'; } catch { return 'system'; }
+}
+
+function setTheme(theme) {
+  try {
+    if (theme === 'system') localStorage.removeItem(LS_THEME);
+    else localStorage.setItem(LS_THEME, theme);
+  } catch {}
+  if (theme === 'system') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
 }
 
 /* ---------- GitHub ---------- */
@@ -1043,6 +1102,36 @@ function updateFooter() {
   footer.append(note);
 }
 
+// A list of headings with their monthly total. Selecting a heading shows its entries.
+// `key` keeps each list's open headings separate (for example per account).
+function headingTree(entries, key) {
+  const groups = new Map();
+  for (const entry of entries) {
+    if (!groups.has(entry.section)) groups.set(entry.section, []);
+    groups.get(entry.section).push(entry);
+  }
+  const order = S.data.sections.map(section => section.id).filter(id => groups.has(id));
+  for (const id of groups.keys()) if (!order.includes(id)) order.push(id);
+  return `<ul class="h-tree">${order.map(sectionId => {
+    const section = S.data.sections.find(item => item.id === sectionId);
+    const list = groups.get(sectionId);
+    const id = `${key}:${sectionId}`;
+    const isOpen = S.open.has(id);
+    const monthly = list.reduce((total, e) => total + monthlyEquivalent(e), 0);
+    return `<li>
+      <button class="h-row" data-action="toggle-group" data-id="${esc(id)}" aria-expanded="${isOpen}" aria-controls="${esc(id)}">
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+        <span class="h-name">${esc(section ? section.name : 'No heading')} <span class="h-count">${list.length}</span></span>
+        <span class="h-amt">${inr(monthly)}</span>
+      </button>
+      ${isOpen ? `<ul class="h-entries" id="${esc(id)}">${list.map(e => `<li>
+          <span class="h-item">${esc(e.item)} <span class="muted">(${esc(e.frequency)})</span></span>
+          <span class="h-amt">${inr(monthlyEquivalent(e))}</span>
+        </li>`).join('')}</ul>` : ''}
+    </li>`;
+  }).join('')}</ul>`;
+}
+
 function renderHome() {
   const s = summarize(S.data);
   const warnings = [];
@@ -1062,7 +1151,7 @@ function renderHome() {
     ];
     const detail = `<div class="pay-detail" id="pay-${esc(id)}">
         <dl class="pay-figures">${figures.map(([label, amount]) => `<div><dt>${label}</dt><dd>${inr(amount)}</dd></div>`).join('')}</dl>
-        <ul class="pay-entries">${row.entries.map(e => `<li><span>${esc(e.item)} <span class="muted">(${esc(e.frequency)})</span></span><span class="num">${inr(monthlyEquivalent(e))}</span></li>`).join('')}</ul>
+        ${headingTree(row.entries, `acc-${id}`)}
       </div>`;
     return `<li>
       <button class="pay-row" data-action="toggle-account" data-id="${esc(id)}" aria-expanded="${isOpen}" aria-controls="pay-${esc(id)}">
@@ -1101,15 +1190,10 @@ function renderHome() {
     const id = `group-${cls}`;
     const isOpen = S.open.has(id);
     const monthly = rows.reduce((total, row) => total + row.monthly, 0);
-    const detail = rows.length ? `<ul class="group-list" id="${id}">${rows.map(row => `<li>
-          <span class="g-name">${esc(row.section.name)}</span>
-          <span class="g-amt">${inr(row.monthly)} <span class="g-sub-inline">a month</span></span>
-          <span class="g-sub">${inr(row.yearly)} a year</span>
-          ${row.count ? `<ul class="g-entries">${S.data.entries.filter(e => e.section === row.section.id).map(e => `<li>
-            <span>${esc(e.item)} <span class="muted">(${esc(e.frequency)})</span></span>
-            <span class="num">${inr(monthlyEquivalent(e))}</span>
-          </li>`).join('')}</ul>` : ''}
-        </li>`).join('')}</ul>` : `<p class="empty" id="${id}">${emptyText}</p>`;
+    const ids = new Set(rows.map(row => row.section.id));
+    const entries = S.data.entries.filter(e => ids.has(e.section));
+    const detail = entries.length ? `<div class="group-body" id="${id}">${headingTree(entries, id)}</div>`
+      : `<p class="empty" id="${id}">${emptyText}</p>`;
     return `<section class="card group ${cls}" aria-label="${title}">
       <button class="group-head" data-action="toggle-group" data-id="${id}" aria-expanded="${isOpen}" aria-controls="${id}" aria-label="${title}, ${inr(monthly)} a month. ${isOpen ? 'Hide' : 'Show'} details">
         <span class="group-title">${title}</span>
@@ -1314,6 +1398,16 @@ function renderSettings() {
         </label>
         <label style="margin-bottom:0">Buffer, the minimum to keep in salary (₹)
           <input id="set-buffer" type="number" inputmode="decimal" min="0" step="any" value="${esc(S.data.settings.buffer)}">
+        </label>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Appearance</h3></div>
+      <div class="card-body">
+        <label style="margin-bottom:0">Theme <span class="hint">Applies to this device only.</span>
+          <select id="set-theme">
+            ${[['system', 'Same as device'], ['light', 'Normal (light)'], ['dark', 'Dark']].map(([value, label]) => `<option value="${value}"${getTheme() === value ? ' selected' : ''}>${label}</option>`).join('')}
+          </select>
         </label>
       </div>
     </div>
@@ -1538,6 +1632,7 @@ function handlePageClick(event) {
 
 function handlePageChange(event) {
   const input = event.target;
+  if (input.id === 'set-theme') { setTheme(input.value); return; }
   if (input.id === 'set-income' || input.id === 'set-buffer') {
     S.data.settings[input.id === 'set-income' ? 'income' : 'buffer'] = Math.max(0, Number(input.value) || 0);
     changed();

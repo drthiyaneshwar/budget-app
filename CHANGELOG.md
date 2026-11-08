@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.9.0 - 2026-11-08
+
+- When you open an account in the transfer list, it shows its headings first, each with its monthly total and number of entries. Select a heading to see its entries.
+- The Expenses and Savings and investments boxes work the same way.
+- Amounts sit next to the names instead of at the far right of wide screens.
+- New Appearance setting: choose Same as device, Normal (light) or Dark. It applies to this device only.
+
 ## 1.8.0 - 2026-11-08
 
 - Home has two summary boxes side by side: Expenses on the left in red, and Savings and investments on the right in green. Each shows its monthly and yearly total. Select a box to see its headings and every entry under them.

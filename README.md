@@ -40,6 +40,10 @@ The file is plain JSON:
 
 Account type is `Income`, `Spending`, `Sinking` or `Savings`. Heading kind is `expense` or `savings`. Frequency is `Monthly`, `Quarterly` or `Yearly`.
 
+## Appearance
+
+Settings has a Theme choice: Same as device, Normal (light) or Dark. It is saved in this browser only.
+
 ## Offline
 
 The app works without a connection once it has been opened online. An encrypted copy of your budget stays on the device, and changes made offline sync when the connection returns. The footer shows when changes are not yet synced.
