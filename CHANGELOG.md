@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.20.0 - 2026-11-08
+
+- The Calculator moved from its own tab into Settings, as a Calculator section you select to open. The tabs are back to Home, Entries and Settings.
+
 ## 1.19.0 - 2026-11-08
 
 - New Calculator tab: compares keeping money in a savings account with slab interest (A), part in the savings account and the rest in a liquid fund (B), and an FD with monthly payouts (C). Results update as you type.
