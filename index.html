@@ -238,10 +238,7 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .check-bills { display: block; color: var(--muted); font-size: .8125rem; }
 .check-table tr.is-now td { background: var(--accent-soft); }
 .chip.neutral { background: var(--accent-soft); color: var(--accent); }
-.calc-results-head { display: flex; justify-content: space-between; padding: 12px 16px 4px; font-weight: 650; }
-.calc-section { padding: 14px 16px 0; border-top: 1px solid var(--line); }
-.calc-section h4 { margin: 0 0 10px; font-size: .8125rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
-.calc-note { padding: 0 16px 14px; margin: 0; }
+.btn.back-link { margin: -8px 0 8px; font-weight: 600; text-decoration: none; }
 .calc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0 14px; }
 .calc-grid label { margin-bottom: 12px; }
 .calc-table tr.key td { font-weight: 650; background: var(--accent-soft); }
@@ -544,7 +541,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.20.0';
+const APP_VERSION = '1.21.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -1265,10 +1262,11 @@ function syncIncome() {
 function render() {
   syncIncome();
   document.querySelectorAll('.tab').forEach(tab => {
-    if (tab.dataset.page === S.page) tab.setAttribute('aria-current', 'page');
+    const current = S.page === 'calculator' ? 'settings' : S.page; // the calculator page belongs to Settings
+    if (tab.dataset.page === current) tab.setAttribute('aria-current', 'page');
     else tab.removeAttribute('aria-current');
   });
-  ({ home: renderHome, entries: renderEntries, settings: renderSettings })[S.page]();
+  ({ home: renderHome, entries: renderEntries, settings: renderSettings, calculator: renderCalculator })[S.page]();
   updateFooter();
 }
 
@@ -1713,9 +1711,18 @@ function calcRowsHtml() {
     </table>`;
 }
 
-// The Calculator card in Settings, closed until selected
+// A row in Settings that opens the calculator page
 function calculatorCard() {
-  const isOpen = S.open.has('settings-calculator');
+  return `<div class="card">
+      <button class="card-head summary-toggle" data-action="open-calculator">
+        <span><span class="summary-title">Calculator</span><span class="subtotals">Savings account vs liquid fund vs FD</span></span>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>`;
+}
+
+// The calculator's own page, opened from Settings
+function renderCalculator() {
   const fieldHtml = field => {
     const value = calcValue(field);
     const input = field.type === 'select'
@@ -1723,21 +1730,20 @@ function calculatorCard() {
       : `<input id="calc-${field.id}" data-calc="${field.id}" type="${field.type || 'number'}"${field.type ? '' : ' inputmode="decimal" step="any"'} value="${esc(value)}">`;
     return `<label>${field.label}${input}</label>`;
   };
-  return `<div class="card">
-      <button class="card-head summary-toggle" data-action="toggle-group" data-id="settings-calculator" aria-expanded="${isOpen}" aria-controls="settings-calculator">
-        <span><span class="summary-title">Calculator</span><span class="subtotals">Savings account vs liquid fund vs FD · ${isOpen ? 'Select to hide' : 'Select to open'}</span></span>
-        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-      </button>
-      ${isOpen ? `<div id="settings-calculator">
-        <div class="calc-results-head"><span>Results</span><span class="muted">Before tax</span></div>
-        <div id="calc-results">${calcRowsHtml()}</div>
-        ${CALC_FIELDS.map(group => `<div class="calc-section">
-          <h4>${group.group}</h4>
-          <div class="calc-grid">${group.fields.map(fieldHtml).join('')}</div>
-        </div>`).join('')}
-        <p class="small muted calc-note">Interest a year = interest ÷ average balance, for a full year. The liquid fund return is an assumption, not a guarantee. Your amounts are saved in your encrypted budget.</p>
-      </div>` : ''}
-    </div>`;
+  $('page').innerHTML = `
+    <button type="button" class="btn link back-link" data-action="close-calculator">‹ Back to Settings</button>
+    <div class="page-head"><div><h2>Calculator</h2><div class="page-sub">Savings account vs liquid fund vs FD</div></div></div>
+    <div class="card">
+      <div class="card-head"><h3>Results</h3><span class="subtotals">Before tax</span></div>
+      <div id="calc-results">${calcRowsHtml()}</div>
+    </div>
+    ${CALC_FIELDS.map(group => `<div class="card">
+      <div class="card-head"><h3>${group.group}</h3></div>
+      <div class="card-body calc-grid">${group.fields.map(fieldHtml).join('')}</div>
+    </div>`).join('')}
+    <p class="small muted">Interest a year = interest ÷ average balance, for a full year. The liquid fund return is an assumption, not a guarantee. Your amounts are saved in your encrypted budget.</p>`;
+  bindCalculator();
+  window.scrollTo(0, 0);
 }
 
 // Update results as you type; the page's change handler saves when a box is left
@@ -2004,7 +2010,6 @@ function renderSettings() {
     </div>
     <p class="muted small">Budget Planner version ${esc(APP_VERSION)}</p>`;
   $('pass-form').addEventListener('submit', handleChangePasscode);
-  bindCalculator();
   $('token-form').addEventListener('submit', handleReplaceToken);
 }
 
@@ -2309,6 +2314,8 @@ const actions = {
     changed();
   },
   backup: downloadBackup,
+  'open-calculator'() { go('calculator'); },
+  'close-calculator'() { go('settings'); },
   'export-copy'() { exportData('copy'); },
   'export-download'() { exportData('download'); },
   remember: openRememberDialog,

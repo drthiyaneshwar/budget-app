@@ -1,6 +1,6 @@
 // Serves the app network-first and falls back to the cache when offline.
 // Only same-origin requests are handled, so GitHub API calls are never cached.
-const CACHE_NAME = 'budget-planner-v1.20.0';
+const CACHE_NAME = 'budget-planner-v1.21.0';
 const APP_FILES = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', event => {

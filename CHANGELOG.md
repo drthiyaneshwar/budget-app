@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.21.0 - 2026-11-08
+
+- The Calculator opens on its own page from Settings instead of opening inside the Settings page. Back to Settings returns you.
+
 ## 1.20.0 - 2026-11-08
 
 - The Calculator moved from its own tab into Settings, as a Calculator section you select to open. The tabs are back to Home, Entries and Settings.
