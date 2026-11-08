@@ -409,7 +409,6 @@ dialog h3 { margin-bottom: 12px; }
       <nav class="tabs" aria-label="Pages">
         <button class="tab" data-page="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg><span>Home</span></button>
         <button class="tab" data-page="entries"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg><span>Entries</span></button>
-        <button class="tab" data-page="accounts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg><span>Accounts</span></button>
         <button class="tab" data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg><span>Settings</span></button>
       </nav>
     </div>
@@ -495,7 +494,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.12.0';
+const APP_VERSION = '1.13.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -1208,7 +1207,7 @@ function render() {
     if (tab.dataset.page === S.page) tab.setAttribute('aria-current', 'page');
     else tab.removeAttribute('aria-current');
   });
-  ({ home: renderHome, entries: renderEntries, accounts: renderAccounts, settings: renderSettings })[S.page]();
+  ({ home: renderHome, entries: renderEntries, settings: renderSettings })[S.page]();
   updateFooter();
 }
 
@@ -1418,7 +1417,7 @@ function renderHome() {
       <div class="card-head"><h3>Transfer to each account this month</h3><span class="subtotals">Select an account to see its entries</span></div>
       ${payRows ? `<ul class="pay-list">${payRows}</ul>
         <div class="pay-total"><span>Total to transfer<span class="pay-role">Includes ${inr(s.totals.yearlyPerMonth)} a month for yearly bills (${inr(s.totals.yearlyRouted)} a year)</span></span><span class="pay-amount">${money(s.totalTransfer)}</span></div>`
-        : `<p class="empty">${s.accounts.length ? 'No transfers yet. Add entries on the Entries page.' : 'No accounts yet. Add one on the Accounts page.'}</p>`}
+        : `<p class="empty">${s.accounts.length ? 'No transfers yet. Add entries on the Entries page.' : 'No accounts yet. Add one in Settings, under Accounts.'}</p>`}
     </div>
     ${summaryHtml}`;
 }
@@ -1458,6 +1457,7 @@ function renderEntries() {
         <div class="btn-row sec-actions">
           <button class="btn" data-action="edit-section" data-id="${esc(section.id)}" aria-label="Edit heading ${esc(section.name)}">Edit heading</button>
           <button class="btn" data-action="add-entry" data-id="${esc(section.id)}" aria-label="Add entry to ${esc(section.name)}">Add entry</button>
+          <button class="btn danger" data-action="delete-section" data-id="${esc(section.id)}" aria-label="Delete heading ${esc(section.name)}">Delete heading</button>
         </div>
         ${entries.length ? `<table class="stack">
           <thead><tr><th>Item</th><th class="num">Amount</th><th>How often</th><th class="num">Per month</th><th>Account</th><th>Notes</th><th><span hidden>Actions</span></th></tr></thead>
@@ -1468,12 +1468,12 @@ function renderEntries() {
   }).join('');
   $('page').innerHTML = `
     <div class="page-head"><h2>Entries</h2><button class="btn primary" data-action="add-section">Add heading</button></div>
-    ${!S.data.accounts.length ? '<div class="notice">Add an account on the Accounts page before adding entries.</div>' : ''}
+    ${!S.data.accounts.length ? '<div class="notice">Add an account in Settings, under Accounts, before adding entries.</div>' : ''}
     ${cards || '<div class="card"><p class="empty">No headings yet. Use Add heading to create one.</p></div>'}`;
 }
 
 function openEntryDialog(entry, sectionId) {
-  if (!S.data.accounts.length) { toast('Add an account first.', true); return; }
+  if (!S.data.accounts.length) { toast('Add an account first, in Settings under Accounts.', true); return; }
   S.editing = entry ? entry.id : null;
   $('entry-title').textContent = entry ? 'Edit entry' : 'Add entry';
   $('e-item').value = entry ? entry.item : '';
@@ -1533,7 +1533,9 @@ function handleHeadingSubmit(event) {
   changed();
 }
 
-function renderAccounts() {
+// The Accounts card in Settings, closed until selected
+function accountsCard() {
+  const isOpen = S.open.has('settings-accounts');
   const transfers = new Map(summarize(S.data).accounts.map(row => [row.account.id, row.total]));
   const rows = S.data.accounts.map(a => `<tr data-id="${esc(a.id)}">
       <td data-label="Name"><input aria-label="Account name" data-field="name" value="${esc(a.name)}"></td>
@@ -1542,25 +1544,23 @@ function renderAccounts() {
       <td class="num" data-label="Per month">${inr(transfers.get(a.id))}</td>
       <td class="actions"><button class="btn danger" data-action="delete-account" data-id="${esc(a.id)}" aria-label="Delete ${esc(a.name)}">Delete</button></td>
     </tr>`).join('');
-  $('page').innerHTML = `
-    <div class="page-head"><h2>Accounts</h2><button class="btn primary" data-action="add-account">Add account</button></div>
-    <div class="card">
-      ${rows ? `<table class="stack edit-table" data-list="accounts">
-        <thead><tr><th>Name</th><th>Role</th><th>Type</th><th class="num">Per month</th><th><span hidden>Actions</span></th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>` : '<p class="empty">No accounts yet.</p>'}
+  const count = S.data.accounts.length;
+  return `<div class="card">
+      <button class="card-head summary-toggle" data-action="toggle-group" data-id="settings-accounts" aria-expanded="${isOpen}" aria-controls="settings-accounts">
+        <span><span class="summary-title">Accounts</span><span class="subtotals">${count === 1 ? '1 account' : `${count} accounts`} · ${isOpen ? 'Select to hide' : 'Select to add or change'}</span></span>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      ${isOpen ? `<div id="settings-accounts">
+        <div class="btn-row sec-actions"><button class="btn primary" data-action="add-account">Add account</button></div>
+        ${rows ? `<table class="stack edit-table" data-list="accounts">
+          <thead><tr><th>Name</th><th>Role</th><th>Type</th><th class="num">Per month</th><th><span hidden>Actions</span></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>` : '<p class="empty">No accounts yet.</p>'}
+      </div>` : ''}
     </div>`;
 }
 
 function renderSettings() {
-  const rows = S.data.sections.map(s => `<tr data-id="${esc(s.id)}">
-      <td data-label="Name"><input aria-label="Heading name" data-field="name" value="${esc(s.name)}"></td>
-      <td data-label="Kind"><select aria-label="Kind" data-field="kind">
-        <option value="expense"${s.kind === 'expense' ? ' selected' : ''}>Expense</option>
-        <option value="savings"${s.kind === 'savings' ? ' selected' : ''}>Savings and investments</option>
-      </select></td>
-      <td class="actions"><button class="btn danger" data-action="delete-section" data-id="${esc(s.id)}" aria-label="Delete ${esc(s.name)}">Delete</button></td>
-    </tr>`).join('');
   $('page').innerHTML = `
     <div class="page-head"><h2>Settings</h2></div>
     <div class="card">
@@ -1584,13 +1584,7 @@ function renderSettings() {
         </label>
       </div>
     </div>
-    <div class="card">
-      <div class="card-head"><h3>Headings</h3><button class="btn" data-action="add-section">Add heading</button></div>
-      ${rows ? `<table class="stack edit-table" data-list="sections">
-        <thead><tr><th>Name</th><th>Kind</th><th><span hidden>Actions</span></th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>` : '<p class="empty">No headings yet.</p>'}
-    </div>
+    ${accountsCard()}
     <div class="card">
       <div class="card-head"><h3>Data and security</h3></div>
       <div class="card-body">
@@ -1785,7 +1779,7 @@ const actions = {
   'edit-section'(id) { openHeadingDialog(S.data.sections.find(s => s.id === id)); },
   async 'delete-section'(id) {
     const used = S.data.entries.filter(e => e.section === id).length;
-    if (used) { toast(`This heading has ${entryCount(used)}. Move or delete them first.`, true); return; }
+    if (used) { toast(`This heading has ${entryCount(used)}. Move or delete them first, then delete the heading.`, true); return; }
     const section = S.data.sections.find(s => s.id === id);
     if (!await ask(`Delete "${section.name}"?`, 'Delete', true)) return;
     S.data.sections = S.data.sections.filter(s => s.id !== id);

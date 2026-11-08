@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.13.0 - 2026-11-08
+
+- Accounts moved into Settings, as an Accounts section you select to open. The Accounts tab is gone, so there are three tabs: Home, Entries and Settings.
+- The Headings list was removed from Settings. Headings are added, edited and now also deleted on the Entries page.
+
 ## 1.12.0 - 2026-11-08
 
 - New Set aside option on each entry, for money kept ready for a cost you may not have. Tick it when you add or edit an entry. It does not depend on the account or heading.
