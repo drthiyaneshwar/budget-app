@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.36.0 - 2026-11-08
+
+- Earnings: Income by date is replaced by Income by type. It lists each work type with this month's reads and pay, and the all-time total.
+- Selecting a type opens its own page with its work month by month, newest first: date, reads and pay, plus bill and TDS where TDS applies, and the month it is paid.
+
 ## 1.35.0 - 2026-11-08
 
 - Earnings: new Income by date row opens its own page, with a table of every day's work (type, reads, bill, TDS, what you get and the month it is paid), grouped by month, newest first.
