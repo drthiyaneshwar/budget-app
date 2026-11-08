@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.28.3 - 2026-11-08
+
+- Export no longer asks what to export. It always exports the whole budget: overview, income, accounts, headings, entries and the bills due over the next 12 months.
+- Formats stay the same: text for AI chatbots, Excel (CSV) and JSON.
+
 ## 1.28.2 - 2026-11-08
 
 - In Coming up, next month and the chosen month both start closed, showing their bills and money needed on one line. Select a month to open it.

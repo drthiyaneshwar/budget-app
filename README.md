@@ -66,7 +66,7 @@ If two devices change the budget at the same time, the app combines the changes.
 
 ## Export
 
-Settings has an Export section. It can copy or download any part of the budget as text for AI chatbots (Markdown tables), as a CSV file for Excel, or as JSON. Exports are not encrypted, so keep them private.
+Settings has an Export section. It can copy or download the whole budget as text for AI chatbots (Markdown tables), as a CSV file for Excel, or as JSON. Exports are not encrypted, so keep them private.
 
 ## Backups
 
