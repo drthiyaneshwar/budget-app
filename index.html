@@ -329,6 +329,8 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .moon-ring-text span { font-size: .72rem; color: var(--muted); max-width: 96px; }
 .moon-side { flex: 1; min-width: 190px; display: grid; gap: 6px; }
 .moon-big { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.moon-target-reads { font-variant-numeric: tabular-nums; }
+.moon-target-reads strong { color: var(--seg-expense); }
 .moon-unit { font-size: .9rem; font-weight: 600; color: var(--muted); }
 .moon-note { color: var(--muted); }
 .moon-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px; font-size: .8rem; font-weight: 700; white-space: nowrap; }
@@ -368,7 +370,8 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .moon-goals-head { display: flex; width: calc(100% + 32px); justify-content: space-between; align-items: center; gap: 10px; margin: 16px -16px -16px; padding: 12px 16px; background: none; border: 0; border-top: 1px solid var(--line); text-align: left; font-weight: 650; cursor: pointer; min-height: 48px; }
 .moon-goals-head[aria-expanded="true"] .chev { transform: rotate(180deg); }
 .moon-goals { margin: 16px -16px -16px; padding: 4px 16px 14px; }
-.moon-goals label { display: block; max-width: 320px; }
+.moon-goals label { display: block; max-width: 360px; margin-bottom: 8px; }
+.moon-goals select { width: 100%; }
 .moon-goals input { width: 100%; }
 .moon-goals p { margin: 8px 0 0; }
 .moon-goals-head[aria-expanded="true"] { margin-bottom: 0; }
@@ -738,7 +741,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.3.0';
+const APP_VERSION = '2.3.1';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -1719,7 +1722,14 @@ function moonCardHtml(m, today) {
   // Daily target: what is still needed this month (before today's work) shared over the days left, today included
   const daysFromToday = s.daysInMonth - dayNo + 1;
   const target = goal ? Math.max(0, (goal - s.priorNet) / daysFromToday) : 0;
-  const targetReads = target && s.readsPerRupee ? Math.ceil(target * s.readsPerRupee) : 0;
+  // Target reads are counted in one fixed-rate work type: the one chosen below, else the one with the most reads.
+  // Reads per rupee comes from its pay per read after TDS; with no fixed-rate type, from the mix of work logged.
+  const readsOf = id => m.log.reduce((t, day) => t + (day.type === id ? Number(day.reads) || 0 : 0), 0);
+  const fixedTypes = m.types.filter(t => t.fixed && Number(t.rate) > 0);
+  const readType = fixedTypes.find(t => t.id === goals.readType) || [...fixedTypes].sort((a, b) => readsOf(b.id) - readsOf(a.id))[0];
+  const perRead = readType ? afterTds(Number(readType.rate), readType.tds) : 0;
+  const readsFor = amount => Math.max(0, Math.ceil(amount * (perRead ? 1 / perRead : s.readsPerRupee)));
+  const targetReads = target && (perRead || s.readsPerRupee) ? readsFor(target) : 0;
   const weekday = key => new Intl.DateTimeFormat('en-IN', { weekday: 'long' }).format(new Date(key + 'T00:00:00'));
   const monthName = new Intl.DateTimeFormat('en-IN', { month: 'long' }).format(today);
   const monthEnd = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(new Date(today.getFullYear(), today.getMonth(), s.daysInMonth));
@@ -1731,7 +1741,7 @@ function moonCardHtml(m, today) {
   const reached = goal && s.todayNet >= target;
   const todayNote = !goal ? 'Set a monthly goal below to get a daily target'
     : reached ? '<span class="moon-chip good">Today\'s target reached ✓</span>'
-    : `${inr(target - s.todayNet)} to go today${targetReads ? ` · about ${readsText(Math.max(1, Math.ceil((target - s.todayNet) * s.readsPerRupee)))}` : ''}`;
+    : `${inr(target - s.todayNet)} to go today${targetReads ? ` · about ${readsText(Math.max(1, readsFor(target - s.todayNet)))}` : ''}`;
 
   // This month's days; the best day is gold and today is outlined
   const top = Math.max(...s.days, 1);
@@ -1772,6 +1782,7 @@ function moonCardHtml(m, today) {
       </div>
       <div class="moon-side">
         <div><span class="muted small">Reads today</span><div class="moon-big">${count(s.todayReads)} <span class="moon-unit">${s.todayReads === 1 ? 'read' : 'reads'}</span></div></div>
+        ${targetReads ? `<div class="moon-target-reads">Daily target <strong>${targetReads.toLocaleString('en-IN')} reads</strong>${readType ? ` <span class="muted small">at ${inr(perRead)} a read</span>` : ''}</div>` : ''}
         <div class="moon-note small">${todayNote}</div>
         <div class="moon-streak">${flame}<span><strong>${s.streak === 1 ? '1 day' : `${s.streak} days`}</strong> in a row <span class="muted small">· best ${s.bestStreak}</span></span></div>
         <div class="moon-dots" aria-label="Last 7 days">${s.week.map((d, i) => `<span class="moon-dot${d.reads ? ' on' : ''}" style="--d:${(i * .08).toFixed(2)}s" title="${esc(weekday(d.key))}: ${readsText(d.reads)}">${esc(weekday(d.key).slice(0, 1))}</span>`).join('')}</div>
@@ -1809,6 +1820,7 @@ function moonCardHtml(m, today) {
     </button>
     ${goalsOpen ? `<div class="moon-goals" id="earn-goals">
       <label>Monthly goal, after TDS (₹) <input data-moon-goal="amount" type="number" inputmode="decimal" min="0" step="any" placeholder="Not set" value="${goal || ''}"></label>
+      ${fixedTypes.length ? `<label>Count target reads in <select data-moon-goal="readType">${fixedTypes.map(t => `<option value="${esc(t.id)}"${t === readType ? ' selected' : ''}>${esc(t.name)} · ${inr(afterTds(Number(t.rate), t.tds))} a read after TDS</option>`).join('')}</select></label>` : ''}
       <p class="muted small">The daily target is what is left of the goal shared over the days left this month, so it goes down on good days and up after a missed day.</p>
     </div>` : ''}
   </div>`;
@@ -3239,7 +3251,7 @@ function handlePageChange(event) {
   if (input.id === 'set-theme') { setTheme(input.value); return; }
   if (input.id === 'due-pick') { S.duePick = Number(input.value); render(); return; }
   if (input.dataset.moonGoal) {
-    const value = Math.max(0, Number(input.value) || 0);
+    const value = input.dataset.moonGoal === 'readType' ? input.value : Math.max(0, Number(input.value) || 0);
     const goals = { ...moon().goals };
     if (value) goals[input.dataset.moonGoal] = value; else delete goals[input.dataset.moonGoal];
     setMoon({ goals });
