@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.1 - 2026-11-08
+
+- The Earnings tab is now called Moonlights.
+
 ## 2.0.0 - 2026-11-08
 
 Version 2.0 brings together everything added since 1.5.0. No new changes beyond 1.37.0.

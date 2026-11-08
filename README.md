@@ -42,7 +42,7 @@ The data can also have `"incomeSources": [{ "id": "inc_1", "name": "", "amount":
 
 Yearly and quarterly entries can have `"dueMonth"` (1 to 12; for quarterly, the first payment in the year). Accounts can have `"balance"` and `"balanceDate"`, used only by the How much each account should hold card on Home. That card shows, for the start of each month, the share of every dated bill saved since it was last paid.
 
-The data can also have `"moon": { "types": [{ "id": "wt_1", "name": "", "fixed": true, "rate": 0, "delay": 2, "tds": 0 }], "log": [{ "id": "day_1", "date": "YYYY-MM-DD", "type": "wt_1", "reads": 0, "amount": 0, "delay": 2, "tds": 0 }] }` for extra work logged in the Earnings tab. A fixed type pays `rate` per read; otherwise the pay is entered each time. Work is paid `delay` months after the month it was done, less `tds` percent. It is shown as expected income on Home and is not added to the monthly income used in the totals.
+The data can also have `"moon": { "types": [{ "id": "wt_1", "name": "", "fixed": true, "rate": 0, "delay": 2, "tds": 0 }], "log": [{ "id": "day_1", "date": "YYYY-MM-DD", "type": "wt_1", "reads": 0, "amount": 0, "delay": 2, "tds": 0 }] }` for extra work logged in the Moonlights tab. A fixed type pays `rate` per read; otherwise the pay is entered each time. Work is paid `delay` months after the month it was done, less `tds` percent. It is shown as expected income on Home and is not added to the monthly income used in the totals.
 
 An entry can also have `"setAside": true` for money kept ready for a cost that may not happen. It is still counted in the transfer, and Home shows it separately.
 
