@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.17.0 - 2026-11-08
+
+- Coming up splits each month into bills that will be paid and a purple Set aside, if needed part, each with its own total. The month's main total counts only the bills that will be paid.
+
 ## 1.16.0 - 2026-11-08
 
 - The Will there be enough? card is replaced by How much each account should hold. For each account with dated bills, it shows the amount the account should have at the start of each of the next 12 months, and the bills paid that month.
