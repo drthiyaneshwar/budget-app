@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.3 - 2026-11-08
+
+- On large screens, Home uses the full width and places the same cards in two columns: expected income, where your income goes and the three boxes on the left; transfers, Coming up and Summary by heading on the right. Phones and small screens keep one column.
+
 ## 2.1.2 - 2026-11-08
 
 - Income by type lists just the type names. Select one to see its months.

@@ -162,6 +162,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .page-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
 .page-sub { color: var(--muted); font-size: .9rem; }
+/* Home on large screens: wider page, the same cards in two columns */
+@media (min-width: 1100px) {
+  main[data-page="home"], body[data-page="home"] .foot, body[data-page="home"] .topbar-in { max-width: 1440px; }
+  .home-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 20px; align-items: start; }
+  .home-col .due-month { grid-template-columns: minmax(0, 1fr) 240px; }
+}
 .foot { max-width: 1040px; margin: 0 auto; padding: 4px 16px 24px; color: var(--muted); font-size: .8125rem; }
 .sync-note { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 8px; padding: 8px 12px; background: var(--warn-bg); color: var(--warn); border-radius: var(--radius-sm); font-size: .875rem; }
 .sync-note.bad { background: var(--bad-bg); color: var(--bad); }
@@ -622,7 +628,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.1.2';
+const APP_VERSION = '2.1.3';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -1366,6 +1372,8 @@ function render() {
     if (tab.dataset.page === current) tab.setAttribute('aria-current', 'page');
     else tab.removeAttribute('aria-current');
   });
+  $('page').dataset.page = S.page; // lets Home use the full width of large screens
+  document.body.dataset.page = S.page;
   ({ home: renderHome, earnings: renderEarnings, 'earn-days': renderEarnDays, 'earn-month': renderEarnMonth, entries: renderEntries, heading: renderHeading, settings: renderSettings, calculator: renderCalculator })[S.page]();
   updateFooter();
 }
@@ -1897,9 +1905,11 @@ function renderHome() {
         <div><dt>Left in salary</dt><dd>${money(s.left)}</dd></div>
       </dl>
     </section>
+    <div class="home-cols"><div class="home-col">
     ${expectedIncomeHtml(s.income)}
     ${splitCard}
     ${groupsHtml}
+    </div><div class="home-col">
     <div class="card">
       <div class="card-head"><h3>Transfer to each account this month</h3><span class="subtotals">${sentCount ? `${sentCount} of ${payCount} sent · ` : ''}Tick each one once sent</span></div>
       ${payRows ? `<ul class="pay-list">${payRows}</ul>
@@ -1907,7 +1917,8 @@ function renderHome() {
         : `<p class="empty">${s.accounts.length ? 'No transfers yet. Add entries on the Entries page.' : 'No accounts yet. Add one in Settings, under Accounts.'}</p>`}
     </div>
     ${billsHtml()}
-    ${summaryHtml}`;
+    ${summaryHtml}
+    </div></div>`;
 }
 
 // Home: bills coming up in the next 3 months, and whether each account will have enough
