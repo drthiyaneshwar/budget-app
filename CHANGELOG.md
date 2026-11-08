@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.24.1 - 2026-11-08
+
+- Money needed this month now also counts the monthly share you put aside for yearly and quarterly bills that are not due that month. Only bills due that month are counted in full instead of as a share.
+
 ## 1.24.0 - 2026-11-08
 
 - Coming up is back to a simple list of each month's yearly and quarterly bills, with Will pay and Set aside totals.
