@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.12.0 - 2026-11-08
+
+- New Set aside option on each entry, for money kept ready for a cost you may not have. Tick it when you add or edit an entry. It does not depend on the account or heading.
+- Home has a third box, Set aside, in purple. Expenses and Savings and investments no longer include set-aside entries.
+- Where your income goes and Summary by heading show Set aside as its own part.
+- Set-aside entries have a purple tag on the Entries page and in the transfer list.
+- Total to transfer is unchanged, because set-aside money is still moved each month.
+
 ## 1.11.0 - 2026-11-08
 
 - Fixed: after unlocking, changes could stay on the device and not reach GitHub until the app was closed and opened again.

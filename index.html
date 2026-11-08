@@ -40,6 +40,9 @@ try { const t = localStorage.getItem('budgetTheme'); if (t === 'light' || t === 
   --exp-bg: #FBEAE8;
   --sav: #17733F;
   --sav-bg: #E4F4EA;
+  --aside: #5B3FC4;
+  --aside-bg: #EEEAFC;
+  --seg-aside: #7C5CE6;
   --seg-left: #D08A1D;
   --shadow: 0 1px 2px rgba(23, 32, 46, .05), 0 4px 16px rgba(23, 32, 46, .05);
   --radius: 14px;
@@ -71,6 +74,9 @@ try { const t = localStorage.getItem('budgetTheme'); if (t === 'light' || t === 
     --exp-bg: #3A1F1D;
     --sav: #6FD49A;
     --sav-bg: #16301F;
+    --aside: #B9A6FF;
+    --aside-bg: #272040;
+    --seg-aside: #8F76F0;
     --seg-left: #C4872A;
     --shadow: 0 1px 2px rgba(0, 0, 0, .3);
   }
@@ -100,6 +106,9 @@ try { const t = localStorage.getItem('budgetTheme'); if (t === 'light' || t === 
   --exp-bg: #3A1F1D;
   --sav: #6FD49A;
   --sav-bg: #16301F;
+  --aside: #B9A6FF;
+  --aside-bg: #272040;
+  --seg-aside: #8F76F0;
   --seg-left: #C4872A;
   --shadow: 0 1px 2px rgba(0, 0, 0, .3);
 }
@@ -180,7 +189,7 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .empty { padding: 20px 16px; color: var(--muted); margin: 0; }
 
 /* Home: expenses (left) and savings and investments (right) */
-.groups { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; align-items: start; }
+.groups { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; align-items: start; }
 .group { margin-bottom: 0; border-top: 4px solid var(--g); }
 .group.expense { --g: var(--exp); --g-bg: var(--exp-bg); }
 .group.saving { --g: var(--sav); --g-bg: var(--sav-bg); }
@@ -211,6 +220,13 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .kind-tag { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-size: .75rem; font-weight: 600; vertical-align: 2px; }
 .kind-tag.expense { background: var(--exp-bg); color: var(--exp); }
 .kind-tag.saving { background: var(--sav-bg); color: var(--sav); }
+.kind-tag.aside { background: var(--aside-bg); color: var(--aside); }
+.group.aside { --g: var(--aside); --g-bg: var(--aside-bg); }
+.type-block.aside .type-row th { color: var(--aside); background: var(--aside-bg); }
+.aside-tag { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; background: var(--aside-bg); color: var(--aside); font-size: .7rem; font-weight: 600; vertical-align: 1px; white-space: nowrap; }
+label.check { display: flex; align-items: flex-start; gap: 10px; font-weight: 600; cursor: pointer; }
+label.check input { width: 20px; height: 20px; margin: 1px 0 0; flex: none; accent-color: var(--aside); }
+label.check .hint { display: block; font-weight: 400; }
 .divider { border: 0; border-top: 1px solid var(--line); margin: 20px 0; }
 
 /* Where the income goes */
@@ -219,7 +235,7 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .split-seg:first-child { border-radius: 4px 0 0 4px; }
 .split-seg:last-child { border-radius: 0 4px 4px 0; }
 .split-seg:only-child { border-radius: 4px; }
-.split-legend { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 0; }
+.split-legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin: 0; }
 .split-legend div { min-width: 0; }
 .split-legend dt { display: flex; align-items: center; gap: 7px; font-size: .8125rem; color: var(--muted); }
 .split-dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
@@ -292,7 +308,8 @@ dialog h3 { margin-bottom: 12px; }
   .foot { padding-bottom: 92px; }
   .toast { bottom: 84px; }
   .hero { padding: 16px; }
-  .groups { gap: 10px; }
+  .groups { gap: 10px; grid-template-columns: 1fr 1fr; }
+  .group.aside { grid-column: 1 / -1; }
   .group-head { padding-left: 12px; }
   .h-entries { margin-left: 12px; }
   .group-body { padding: 4px 6px 8px; }
@@ -411,6 +428,12 @@ dialog h3 { margin-bottom: 12px; }
     </label>
     <label>Heading <select id="e-section"></select></label>
     <label>Account <select id="e-account"></select></label>
+    <label class="check">
+      <input id="e-aside" type="checkbox">
+      <span>Set aside, I may not spend this
+        <span class="hint">Money kept ready for a cost that might not happen. It is still transferred each month, and shows in its own purple box on Home.</span>
+      </span>
+    </label>
     <label>Notes <textarea id="e-notes" rows="2"></textarea></label>
     <p class="error" id="entry-error" role="alert"></p>
     <div class="dlg-foot">
@@ -425,7 +448,7 @@ dialog h3 { margin-bottom: 12px; }
     <h3 id="heading-title">Add heading</h3>
     <label>Heading name <input id="h-name" required></label>
     <label>Kind
-      <span class="hint">Choose Savings and investments for money you set aside, such as investments or an emergency fund. It shows in green on Home.</span>
+      <span class="hint">Choose Savings and investments for money you put away, such as investments or an emergency fund. It shows in green on Home.</span>
       <select id="h-kind"><option value="expense">Expense</option><option value="savings">Savings and investments</option></select>
     </label>
     <p class="error" id="heading-error" role="alert"></p>
@@ -472,7 +495,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.11.0';
+const APP_VERSION = '1.12.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -1243,7 +1266,7 @@ function headingTree(entries, key) {
         <span class="h-amt">${inr(monthly)}</span>
       </button>
       ${isOpen ? `<ul class="h-entries" id="${esc(id)}">${list.map(e => `<li>
-          <span class="h-item">${esc(e.item)} <span class="muted">(${esc(e.frequency)})</span></span>
+          <span class="h-item">${esc(e.item)} <span class="muted">(${esc(e.frequency)})</span>${e.setAside ? '<span class="aside-tag">Set aside</span>' : ''}</span>
           <span class="h-amt">${inr(monthlyEquivalent(e))}</span>
         </li>`).join('')}</ul>` : ''}
     </li>`;
@@ -1282,9 +1305,21 @@ function renderHome() {
     </li>`;
   }).join('');
 
+  // Entries counted in the totals (those with an existing account), split three ways.
+  // Set-aside entries are pulled out of expenses and savings for display only;
+  // summarize() and Total to transfer are unchanged.
+  const accountIds = new Set(S.data.accounts.map(a => a.id));
+  const kindOf = id => (S.data.sections.find(section => section.id === id) || {}).kind;
+  const counted = S.data.entries.filter(e => accountIds.has(e.account));
+  const asideEntries = counted.filter(e => e.setAside);
+  const expenseEntries = counted.filter(e => !e.setAside && kindOf(e.section) !== 'savings');
+  const savingEntries = counted.filter(e => !e.setAside && kindOf(e.section) === 'savings');
+  const monthlyOf = list => list.reduce((total, e) => total + monthlyEquivalent(e), 0);
+
   const splitParts = [
-    { label: 'Expenses', amount: s.totals.expenses, color: 'var(--seg-expense)' },
-    { label: 'Savings', amount: s.totals.savings, color: 'var(--seg-saving)' },
+    { label: 'Expenses', amount: monthlyOf(expenseEntries), color: 'var(--seg-expense)' },
+    { label: 'Savings', amount: monthlyOf(savingEntries), color: 'var(--seg-saving)' },
+    ...(asideEntries.length ? [{ label: 'Set aside', amount: monthlyOf(asideEntries), color: 'var(--seg-aside)' }] : []),
     { label: 'Left in salary', amount: Math.max(0, s.left), color: 'var(--seg-left)' }
   ];
   const splitTotal = splitParts.reduce((total, part) => total + part.amount, 0);
@@ -1303,12 +1338,10 @@ function renderHome() {
   const monthName = new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(new Date());
 
   // Each column shows its total; the headings and entries open on select.
-  const group = (title, cls, rows, emptyText) => {
+  const group = (title, cls, entries, emptyText) => {
     const id = `group-${cls}`;
     const isOpen = S.open.has(id);
-    const monthly = rows.reduce((total, row) => total + row.monthly, 0);
-    const ids = new Set(rows.map(row => row.section.id));
-    const entries = S.data.entries.filter(e => ids.has(e.section));
+    const monthly = monthlyOf(entries);
     const detail = entries.length ? `<div class="group-body" id="${id}">${headingTree(entries, id)}</div>`
       : `<p class="empty" id="${id}">${emptyText}</p>`;
     return `<section class="card group ${cls}" aria-label="${title}">
@@ -1320,12 +1353,18 @@ function renderHome() {
       ${isOpen ? detail : ''}
     </section>`;
   };
-  const expenseRows = s.bySection.filter(row => row.section.kind !== 'savings');
-  const savingRows = s.bySection.filter(row => row.section.kind === 'savings');
   const groupsHtml = s.bySection.length ? `<div class="groups">
-      ${group('Expenses', 'expense', expenseRows, 'No expense headings yet.')}
-      ${group('Savings and investments', 'saving', savingRows, 'None yet. On the Entries page, edit a heading and set its kind to Savings and investments.')}
+      ${group('Expenses', 'expense', expenseEntries, 'No expense entries yet.')}
+      ${group('Savings and investments', 'saving', savingEntries, 'None yet. On the Entries page, edit a heading and set its kind to Savings and investments.')}
+      ${group('Set aside', 'aside', asideEntries, 'Nothing set aside yet. When you add or edit an entry, tick Set aside.')}
     </div>` : '';
+
+  // Per-heading rows for the summary table, from a list of entries
+  const rowsFor = list => S.data.sections.map(section => {
+    const items = list.filter(e => e.section === section.id);
+    const monthly = monthlyOf(items);
+    return { section, count: items.length, monthly, yearly: monthly * 12 };
+  }).filter(row => row.count);
 
   // Summary by heading: closed by default, rows grouped by type with a subtotal each
   const summaryOpen = S.open.has('summary-headings');
@@ -1351,8 +1390,9 @@ function renderHome() {
       </button>
       ${summaryOpen ? (s.bySection.length ? `<div class="scroll" id="summary-headings"><table class="type-table">
         <thead><tr><th>Heading</th><th class="num col-items">Items</th><th class="num">Monthly</th><th class="num">Yearly</th></tr></thead>
-        ${typeBlock('Expenses', 'expense', expenseRows)}
-        ${typeBlock('Savings and investments', 'saving', savingRows)}
+        ${typeBlock('Expenses', 'expense', rowsFor(expenseEntries))}
+        ${typeBlock('Savings and investments', 'saving', rowsFor(savingEntries))}
+        ${typeBlock('Set aside', 'aside', rowsFor(asideEntries))}
       </table></div>` : '<p class="empty" id="summary-headings">No headings yet. Add one on the Entries page.</p>') : ''}
     </div>`;
 
@@ -1392,7 +1432,7 @@ function renderEntries() {
     const entries = S.data.entries.filter(e => e.section === section.id);
     const monthly = entries.reduce((total, e) => total + monthlyEquivalent(e), 0);
     const rows = entries.map(e => `<tr>
-        <td class="title">${esc(e.item)}</td>
+        <td class="title">${esc(e.item)}${e.setAside ? '<span class="aside-tag">Set aside</span>' : ''}</td>
         <td class="num" data-label="Amount">${inr(e.amount)}</td>
         <td data-label="How often">${esc(e.frequency)}</td>
         <td class="num" data-label="Per month">${inr(monthlyEquivalent(e))}</td>
@@ -1442,6 +1482,7 @@ function openEntryDialog(entry, sectionId) {
   $('e-section').innerHTML = options(S.data.sections, entry ? entry.section : sectionId);
   $('e-account').innerHTML = options(S.data.accounts, entry ? entry.account : undefined);
   $('e-notes').value = entry ? entry.notes : '';
+  $('e-aside').checked = Boolean(entry && entry.setAside);
   $('entry-error').textContent = '';
   $('dlg-entry').showModal();
 }
@@ -1454,7 +1495,7 @@ function handleEntrySubmit(event) {
   if ($('e-amount').value === '' || !Number.isFinite(amount) || amount < 0) { $('entry-error').textContent = 'Enter an amount of 0 or more.'; return; }
   const values = {
     section: $('e-section').value, item, amount, frequency: $('e-frequency').value,
-    account: $('e-account').value, notes: $('e-notes').value.trim()
+    account: $('e-account').value, notes: $('e-notes').value.trim(), setAside: $('e-aside').checked
   };
   const existing = S.editing && S.data.entries.find(e => e.id === S.editing);
   if (existing) Object.assign(existing, values);
