@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.25.0 - 2026-11-08
+
+- Money needed this month shows Savings and investments on its own green line. It is still included in the total. Monthly payments is now Monthly expenses.
+
 ## 1.24.1 - 2026-11-08
 
 - Money needed this month now also counts the monthly share you put aside for yearly and quarterly bills that are not due that month. Only bills due that month are counted in full instead of as a share.

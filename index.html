@@ -237,6 +237,7 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .need-line { color: var(--muted); }
 .need-total { margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--line); font-size: .9375rem; }
 .need-aside { color: var(--aside); font-weight: 600; }
+.need-line.need-invest { color: var(--sav); font-weight: 600; }
 .due-note { margin: 12px 16px 0; }
 .due-aside { margin-top: 8px; padding: 8px 10px; max-width: 520px; background: var(--aside-bg); border-radius: var(--radius-sm); }
 .due-aside-head { display: flex; justify-content: space-between; gap: 12px; color: var(--aside); font-size: .8125rem; font-weight: 700; margin-bottom: 2px; }
@@ -553,7 +554,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.24.1';
+const APP_VERSION = '1.25.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -1573,21 +1574,27 @@ function billsHtml() {
   const monthlyEntries = live.filter(e => e.frequency === 'Monthly');
   const undated = live.filter(e => e.frequency !== 'Monthly' && !dueMonths(e).length);
   const shareOf = list => list.reduce((sum, e) => sum + monthlyEquivalent(e), 0);
+  // Savings and investments are shown on their own line, and still count in the total
+  const isSaving = e => (S.data.sections.find(section => section.id === e.section) || {}).kind === 'savings';
   const neededHtml = due => {
     const notDue = dated.filter(e => !due.includes(e));
-    const regular = sumOf(monthlyEntries.filter(e => !e.setAside));
-    const shares = shareOf(notDue.filter(e => !e.setAside));
-    const bills = sumOf(due.filter(e => !e.setAside));
-    const undatedShare = shareOf(undated.filter(e => !e.setAside));
+    const expense = e => !e.setAside && !isSaving(e);
+    const saving = e => !e.setAside && isSaving(e);
+    const regular = sumOf(monthlyEntries.filter(expense));
+    const shares = shareOf(notDue.filter(expense));
+    const bills = sumOf(due.filter(expense));
+    const undatedShare = shareOf(undated.filter(expense));
+    const invest = sumOf(monthlyEntries.filter(saving)) + shareOf(notDue.filter(saving)) + sumOf(due.filter(saving)) + shareOf(undated.filter(saving));
     const aside = sumOf(monthlyEntries.filter(e => e.setAside)) + shareOf(notDue.filter(e => e.setAside))
       + sumOf(due.filter(e => e.setAside)) + shareOf(undated.filter(e => e.setAside));
     return `<div class="need">
         <div class="need-title">Money needed this month</div>
-        <div class="need-line"><span>Monthly payments</span><span>${inr(regular)}</span></div>
+        <div class="need-line"><span>Monthly expenses</span><span>${inr(regular)}</span></div>
         <div class="need-line"><span>Monthly share for bills not due yet</span><span>${inr(shares)}</span></div>
         <div class="need-line"><span>Bills due this month, in full</span><span>${inr(bills)}</span></div>
         ${undatedShare ? `<div class="need-line"><span>Bills without a due month, monthly share</span><span>${inr(undatedShare)}</span></div>` : ''}
-        <div class="need-total"><span>Total</span><strong>${inr(regular + shares + bills + undatedShare)}</strong></div>
+        <div class="need-line need-invest"><span>Savings and investments</span><span>${inr(invest)}</span></div>
+        <div class="need-total"><span>Total</span><strong>${inr(regular + shares + bills + undatedShare + invest)}</strong></div>
         ${aside ? `<div class="need-aside"><span>Set aside, if needed</span><span>+ ${inr(aside)}</span></div>` : ''}
       </div>`;
   };
