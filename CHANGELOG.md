@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.24.0 - 2026-11-08
+
+- Coming up is back to a simple list of each month's yearly and quarterly bills, with Will pay and Set aside totals.
+- Each month has a Money needed this month box: all monthly payments (expenses and savings) plus the bills due that month, at full amount. Monthly shares of yearly bills are not added, so nothing is counted twice. Set-aside costs are shown separately.
+- Yearly and quarterly entries without a due month are listed at the top of Coming up, and counted at their monthly share until you add one.
+
 ## 1.23.0 - 2026-11-08
 
 - Coming up groups each month's bills by account. Under each account it shows what is saved each month for those bills, and how much more than that is paid from the account's savings that month, or that this month's saving covers it.
