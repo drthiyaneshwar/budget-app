@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.28.0 - 2026-11-08
+
+- Coming up shows next month first, open. This month follows as a one-line summary of bills and money needed, which you can open.
+- Show another month lets you pick any month up to a year ahead and see its bills and money needed.
+
 ## 1.27.0 - 2026-11-08
 
 - In Coming up, next month opens by default. This month and the month after start closed, showing a one-line summary of bills and money needed. Select any month to open or close it.
