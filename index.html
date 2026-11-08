@@ -273,6 +273,21 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .search-item { display: block; font-weight: 600; overflow-wrap: anywhere; }
 .search-list .btn { min-height: 38px; padding: 5px 12px; font-size: .875rem; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.expect { padding: 14px 16px; }
+.expect-title { font-weight: 650; margin-bottom: 4px; }
+.expect-sum { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.expect-sum strong { font-size: 1.35rem; }
+.expect-op { color: var(--muted); }
+.expect-extra { color: var(--good); font-weight: 600; }
+.earn-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0 14px; align-items: end; }
+.earn-form .btn { margin-bottom: 12px; }
+.earn-form .error { grid-column: 1 / -1; margin: 0 0 8px; }
+.earn-preview { margin-bottom: 12px; padding: 10px 0; color: var(--muted); font-size: .875rem; font-variant-numeric: tabular-nums; }
+.earn-days { list-style: none; margin: 0; padding: 0; }
+.earn-days li { display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.earn-days li:last-child { border-bottom: 0; }
+.earn-days li > span:first-child { flex: 1; }
+.earn-days .btn { min-height: 34px; padding: 4px 10px; font-size: .8125rem; }
 .due-aside { margin-top: 8px; padding: 8px 10px; max-width: 520px; background: var(--aside-bg); border-radius: var(--radius-sm); }
 .due-aside-head { display: flex; justify-content: space-between; gap: 12px; color: var(--aside); font-size: .8125rem; font-weight: 700; margin-bottom: 2px; }
 .heading-head h2 { font-size: 1.5rem; }
@@ -388,6 +403,8 @@ dialog h3 { margin-bottom: 12px; }
   .group-head { padding-left: 12px; }
   .h-entries { margin-left: 12px; }
   .due-month { padding: 12px; grid-template-columns: 1fr; }
+  .earn-table th, .earn-table td { padding: 8px 10px; font-size: .875rem; }
+  .earn-days li { flex-wrap: wrap; gap: 4px 12px; }
   .due-closed .due-toggle { flex-wrap: wrap; }
   .due-closed .due-toggle-sum { flex-basis: 100%; justify-content: flex-start; padding-left: 24px; }
   .income-table thead { display: none; }
@@ -490,6 +507,7 @@ dialog h3 { margin-bottom: 12px; }
       </div>
       <nav class="tabs" aria-label="Pages">
         <button class="tab" data-page="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg><span>Home</span></button>
+        <button class="tab" data-page="earnings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/></svg><span>Earnings</span></button>
         <button class="tab" data-page="entries"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg><span>Entries</span></button>
         <button class="tab" data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg><span>Settings</span></button>
       </nav>
@@ -581,7 +599,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.29.0';
+const APP_VERSION = '1.30.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -922,7 +940,11 @@ function mergeData(base, local, remote) {
     accounts: mergeList(base && base.accounts, local.accounts, remote.accounts),
     sections: mergeList(base && base.sections, local.sections, remote.sections),
     entries: mergeList(base && base.entries, local.entries, remote.entries),
-    incomeSources: mergeList(base && base.incomeSources, local.incomeSources, remote.incomeSources)
+    incomeSources: mergeList(base && base.incomeSources, local.incomeSources, remote.incomeSources),
+    moon: (local.moon || remote.moon) ? {
+      ...(remote.moon || {}), ...(local.moon || {}),
+      log: mergeList(base && base.moon && base.moon.log, (local.moon || {}).log, (remote.moon || {}).log)
+    } : undefined
   };
 }
 
@@ -1309,7 +1331,7 @@ function render() {
     if (tab.dataset.page === current) tab.setAttribute('aria-current', 'page');
     else tab.removeAttribute('aria-current');
   });
-  ({ home: renderHome, entries: renderEntries, heading: renderHeading, settings: renderSettings, calculator: renderCalculator })[S.page]();
+  ({ home: renderHome, earnings: renderEarnings, entries: renderEntries, heading: renderHeading, settings: renderSettings, calculator: renderCalculator })[S.page]();
   updateFooter();
 }
 
@@ -1407,6 +1429,122 @@ function upcomingMonths(count) {
       short_label: new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'numeric' }).format(date)
     };
   });
+}
+
+/* ---------- Earnings: extra work paid some months later ----------
+   S.data.moon = { name, rate, delay, log: [{ id, date: 'YYYY-MM-DD', studies, rate }] }.
+   Work done in a month is paid `delay` months later. Each day keeps the rate
+   it was logged at, so changing the rate does not change past days. */
+
+const moon = () => S.data.moon || { name: '', rate: '', delay: 2, log: [] };
+const addMonths = (key, n) => {
+  const [year, month] = key.split('-').map(Number);
+  return monthKey(new Date(year, month - 1 + n, 1));
+};
+const dayAmount = day => (Number(day.studies) || 0) * (Number(day.rate) || 0);
+
+// Totals by the month the work was done
+function earningsByMonth() {
+  const months = new Map();
+  for (const day of moon().log) {
+    const key = day.date.slice(0, 7);
+    const row = months.get(key) || { key, studies: 0, amount: 0, days: 0 };
+    row.studies += Number(day.studies) || 0;
+    row.amount += dayAmount(day);
+    row.days += 1;
+    months.set(key, row);
+  }
+  return [...months.values()].sort((a, b) => b.key.localeCompare(a.key));
+}
+
+// Money from extra work that arrives in a given month
+function earningsPaidIn(key) {
+  const workMonth = addMonths(key, -(Number(moon().delay) || 0));
+  return moon().log.filter(day => day.date.startsWith(workMonth)).reduce((total, day) => total + dayAmount(day), 0);
+}
+
+// Home: next month's income, with the extra work paid that month
+function expectedIncomeHtml(income) {
+  const m = moon();
+  if (!m.log.length && !m.rate) return '';
+  const next = upcomingMonths(2)[1];
+  const extra = earningsPaidIn(next.key);
+  const workMonth = monthLabel(addMonths(next.key, -(Number(m.delay) || 0)));
+  return `<div class="card expect">
+      <div class="expect-title">Expected income in ${esc(next.label)}</div>
+      <div class="expect-sum"><span>${inr(income)}</span><span class="expect-op">+</span><span class="expect-extra">${inr(extra)}</span><span class="expect-op">=</span><strong>${inr(income + extra)}</strong></div>
+      <div class="small muted">Regular income + ${esc(m.name || 'extra work')} done in ${esc(workMonth)}</div>
+    </div>`;
+}
+
+function renderEarnings() {
+  const m = moon();
+  const today = new Date();
+  const todayKey = `${monthKey(today)}-${String(today.getDate()).padStart(2, '0')}`;
+  const months = earningsByMonth();
+  const delay = Number(m.delay) || 0;
+  const thisMonth = months.find(row => row.key === monthKey(today));
+  const recent = [...m.log].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 31);
+  const dayLabel = date => new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', weekday: 'short' }).format(new Date(date + 'T00:00:00'));
+  $('page').innerHTML = `
+    <div class="page-head"><div><h2>Earnings</h2><div class="page-sub">Extra work, paid ${delay === 1 ? '1 month' : `${delay} months`} later</div></div></div>
+    <div class="card">
+      <div class="card-head"><h3>Add a day's work</h3></div>
+      <form class="card-body earn-form" id="earn-form" novalidate>
+        <label>Date <input id="earn-date" type="date" value="${todayKey}" max="${todayKey}"></label>
+        <label>Studies read <input id="earn-studies" type="number" inputmode="numeric" min="0" step="1"></label>
+        <div class="earn-preview" id="earn-preview">${m.rate ? `At ${inr(Number(m.rate))} a study` : 'Set the rate per study below first.'}</div>
+        <p class="error" id="earn-error" role="alert"></p>
+        <button class="btn primary">Add</button>
+      </form>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>By month</h3><span class="subtotals">${thisMonth ? `This month so far: ${thisMonth.studies} studies, ${inr(thisMonth.amount)}` : 'Nothing logged this month yet'}</span></div>
+      ${months.length ? `<table class="earn-table">
+        <thead><tr><th>Work done in</th><th class="num">Studies</th><th class="num">Earned</th><th>Paid in</th></tr></thead>
+        <tbody>${months.map(row => `<tr><td>${esc(monthLabel(row.key))}</td><td class="num">${row.studies}</td><td class="num">${inr(row.amount)}</td><td>${esc(monthLabel(addMonths(row.key, delay)))}</td></tr>`).join('')}</tbody>
+      </table>` : '<p class="empty">No work logged yet.</p>'}
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Days logged</h3><span class="subtotals">Latest first</span></div>
+      ${recent.length ? `<ul class="earn-days">${recent.map(day => `<li>
+          <span>${esc(dayLabel(day.date))}</span>
+          <span class="muted">${Number(day.studies) || 0} × ${inr(Number(day.rate) || 0)}</span>
+          <strong class="num">${inr(dayAmount(day))}</strong>
+          <button type="button" class="btn danger" data-action="delete-day" data-id="${esc(day.id)}" aria-label="Delete ${esc(dayLabel(day.date))}">Delete</button>
+        </li>`).join('')}</ul>` : '<p class="empty">Days you add appear here.</p>'}
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Settings</h3></div>
+      <div class="card-body calc-grid">
+        <label>Name <input id="earn-name" value="${esc(m.name || '')}" placeholder="For example, reporting work"></label>
+        <label>Pay per study (₹) <input id="earn-rate" type="number" inputmode="decimal" min="0" step="any" value="${esc(m.rate ?? '')}"></label>
+        <label>Paid after (months) <input id="earn-delay" type="number" inputmode="numeric" min="0" max="12" step="1" value="${esc(delay)}"></label>
+      </div>
+    </div>`;
+  $('earn-form').addEventListener('submit', handleEarnSubmit);
+  const preview = () => {
+    const n = Number($('earn-studies').value) || 0;
+    const rate = Number(moon().rate) || 0;
+    $('earn-preview').textContent = rate ? (n ? `${n} × ${inr(rate)} = ${inr(n * rate)}` : `At ${inr(rate)} a study`) : 'Set the rate per study below first.';
+  };
+  $('earn-studies').addEventListener('input', preview);
+}
+
+function handleEarnSubmit(event) {
+  event.preventDefault();
+  const error = $('earn-error');
+  const date = $('earn-date').value;
+  const studies = Number($('earn-studies').value);
+  const rate = Number(moon().rate);
+  error.textContent = '';
+  if (!rate) { error.textContent = 'Set the pay per study in Settings below first.'; return; }
+  if (!date) { error.textContent = 'Choose the date.'; return; }
+  if (!Number.isInteger(studies) || studies <= 0) { error.textContent = 'Enter the number of studies.'; return; }
+  S.data.moon = { ...moon(), log: [...moon().log, { id: newId('day'), date, studies, rate }] };
+  render();
+  changed();
+  toast(`Added ${studies} studies, ${inr(studies * rate)}.`);
 }
 
 // A list of headings with their monthly total. Selecting a heading shows its entries.
@@ -1586,6 +1724,7 @@ function renderHome() {
         <div><dt>Left in salary</dt><dd>${money(s.left)}</dd></div>
       </dl>
     </section>
+    ${expectedIncomeHtml(s.income)}
     ${splitCard}
     ${groupsHtml}
     <div class="card">
@@ -2406,6 +2545,13 @@ const actions = {
     if (head) head.focus();
   },
   'add-entry'(id) { openEntryDialog(null, id); },
+  async 'delete-day'(id) {
+    const day = moon().log.find(item => item.id === id);
+    if (!day || !await ask(`Delete ${day.studies} studies on ${day.date}?`, 'Delete', true)) return;
+    S.data.moon = { ...moon(), log: moon().log.filter(item => item.id !== id) };
+    render();
+    changed();
+  },
   'tick-sent'(id) { toggleDone(monthKey(new Date()), 'sent', id); },
   'tick-paid'(value) { const [key, id] = value.split('|'); toggleDone(key, 'paid', id); },
   'edit-entry'(id) { openEntryDialog(S.data.entries.find(e => e.id === id)); },
@@ -2481,6 +2627,14 @@ function handlePageChange(event) {
   const input = event.target;
   if (input.id === 'set-theme') { setTheme(input.value); return; }
   if (input.id === 'due-pick') { S.duePick = Number(input.value); render(); return; }
+  if (input.id === 'earn-name' || input.id === 'earn-rate' || input.id === 'earn-delay') {
+    const field = { 'earn-name': 'name', 'earn-rate': 'rate', 'earn-delay': 'delay' }[input.id];
+    const value = field === 'name' ? input.value.trim() : field === 'delay' ? Math.min(12, Math.max(0, Math.round(Number(input.value) || 0))) : Math.max(0, Number(input.value) || 0);
+    S.data.moon = { ...moon(), [field]: value };
+    changed();
+    if (field !== 'name') render();
+    return;
+  }
   if (input.dataset.calc) { changed(); return; }
   if (input.id === 'set-income' || input.id === 'set-buffer') {
     S.data.settings[input.id === 'set-income' ? 'income' : 'buffer'] = Math.max(0, Number(input.value) || 0);

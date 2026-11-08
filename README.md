@@ -42,6 +42,8 @@ The data can also have `"incomeSources": [{ "id": "inc_1", "name": "", "amount":
 
 Yearly and quarterly entries can have `"dueMonth"` (1 to 12; for quarterly, the first payment in the year). Accounts can have `"balance"` and `"balanceDate"`, used only by the How much each account should hold card on Home. That card shows, for the start of each month, the share of every dated bill saved since it was last paid.
 
+The data can also have `"moon": { "name": "", "rate": 0, "delay": 2, "log": [{ "id": "day_1", "date": "YYYY-MM-DD", "studies": 0, "rate": 0 }] }` for extra work logged in the Earnings tab. Work done in a month is paid `delay` months later; it is shown as expected income on Home and is not added to the monthly income used in the totals.
+
 An entry can also have `"setAside": true` for money kept ready for a cost that may not happen. It is still counted in the transfer, and Home shows it separately.
 
 Account type is `Income`, `Spending`, `Sinking` or `Savings`. Heading kind is `expense` or `savings`. Frequency is `Monthly`, `Quarterly`, `Yearly` or `One time`. A one-time entry has `"dueDate": "YYYY-MM"` and is not counted in the monthly totals; it appears in Coming up in that month.

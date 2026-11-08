@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.30.0 - 2026-11-08
+
+- New Earnings tab, after Home, for extra work paid per study some months later. Add each day's studies; the app works out the amount, totals each month, and shows the month it will be paid.
+- Set the pay per study and how many months later it is paid in the Earnings tab. Changing the rate does not change days already logged.
+- Home shows Expected income next month: your regular income plus the extra work paid that month.
+
 ## 1.29.0 - 2026-11-08
 
 - Transfer to each account this month: tick each account once you have sent the money. It shows how many are sent, and the ticks start fresh each month.
