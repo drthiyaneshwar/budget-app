@@ -315,6 +315,91 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .earn-form .btn { margin-bottom: 12px; }
 .earn-form .error { grid-column: 1 / -1; margin: 0 0 8px; }
 .earn-preview { margin-bottom: 12px; padding: 10px 0; color: var(--muted); font-size: .875rem; font-variant-numeric: tabular-nums; }
+/* Moonlights: daily motivation card */
+.moon-card { padding: 16px; position: relative; }
+.moon-top { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.moon-ring { position: relative; width: 132px; height: 132px; flex: none; }
+.moon-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.moon-ring circle { fill: none; stroke-width: 12; }
+.moon-ring-bg { stroke: var(--accent-soft); }
+.moon-ring-fg { stroke: var(--seg-expense); stroke-linecap: round; }
+.moon-ring-fg.done { stroke: var(--good); }
+.moon-ring-text { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-variant-numeric: tabular-nums; }
+.moon-ring-text b { font-size: 1.2rem; line-height: 1.1; }
+.moon-ring-text span { font-size: .72rem; color: var(--muted); max-width: 96px; }
+.moon-side { flex: 1; min-width: 190px; display: grid; gap: 6px; }
+.moon-big { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.moon-unit { font-size: .9rem; font-weight: 600; color: var(--muted); }
+.moon-note { color: var(--muted); }
+.moon-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px; font-size: .8rem; font-weight: 700; white-space: nowrap; }
+.moon-chip.good { background: var(--good-bg); color: var(--good); }
+.moon-chip.down { background: var(--bad-bg); color: var(--bad); }
+.moon-streak { display: flex; align-items: center; gap: 6px; }
+.moon-flame { width: 22px; height: 22px; fill: var(--seg-left); flex: none; }
+.moon-dots { display: flex; gap: 5px; }
+.moon-dot { width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: .7rem; font-weight: 700; background: var(--accent-soft); color: var(--muted); }
+.moon-dot.on { background: var(--seg-left); color: #fff; }
+.moon-best { position: relative; overflow: hidden; display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--seg-left); background: linear-gradient(120deg, var(--warn-bg), var(--card)); }
+.moon-best strong { color: var(--warn); }
+.moon-trophy { font-size: 1.8rem; line-height: 1; }
+.moon-shine { position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .5), transparent); transform: skewX(-20deg); pointer-events: none; }
+.moon-sec { margin-top: 16px; position: relative; }
+.moon-sec-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.moon-bars { display: flex; align-items: flex-end; gap: 2px; height: 70px; border-bottom: 1px solid var(--line); }
+.moon-bar { flex: 1; min-width: 0; border-radius: 3px 3px 0 0; background: var(--seg-expense); transform-origin: bottom; }
+.moon-bar.best { background: var(--seg-left); }
+.moon-bar.today { outline: 2px solid var(--text); outline-offset: 1px; min-height: 3px; }
+.moon-bar.future { background: var(--accent-soft); height: 3px !important; }
+.moon-track { position: relative; height: 12px; border-radius: 999px; background: var(--accent-soft); margin-bottom: 6px; }
+.moon-track i { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--card); }
+.moon-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: var(--seg-saving); transform-origin: left; }
+.moon-fill.done { background: var(--good); }
+.moon-confetti { position: absolute; inset: -10px 0 auto; height: 0; pointer-events: none; }
+.moon-confetti i { display: none; position: absolute; left: var(--x); top: 0; width: 6px; height: 10px; border-radius: 2px; background: var(--c); }
+.moon-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+.moon-mini { padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card-raised); min-width: 0; }
+.moon-week { display: flex; gap: 14px; align-items: flex-end; height: 92px; margin-bottom: 6px; }
+.moon-week > div { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; text-align: center; font-variant-numeric: tabular-nums; }
+.moon-wbar { width: 36px; max-height: 50px; min-height: 2px; border-radius: 5px 5px 0 0; background: var(--accent-soft); transform-origin: bottom; margin-bottom: 4px; }
+.moon-wbar.now { background: var(--seg-expense); }
+.moon-fc { position: relative; height: 10px; border-radius: 999px; background: var(--accent-soft); margin: 10px 0 6px; overflow: hidden; }
+.moon-fc-proj { position: absolute; inset: 0; background: repeating-linear-gradient(90deg, var(--seg-expense) 0 6px, transparent 6px 11px); opacity: .45; transform-origin: left; }
+.moon-fc-now { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: var(--seg-expense); transform-origin: left; }
+.moon-badges { display: flex; flex-wrap: wrap; gap: 10px; }
+.moon-badge { width: 84px; text-align: center; font-size: .72rem; line-height: 1.25; color: var(--muted); }
+.moon-medal { width: 50px; height: 50px; margin: 0 auto 4px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; background: var(--accent-soft); filter: grayscale(1); opacity: .45; }
+.moon-badge.won { color: var(--text); font-weight: 600; }
+.moon-badge.won .moon-medal { background: var(--warn-bg); border: 2px solid var(--seg-left); filter: none; opacity: 1; }
+.moon-goals-head { display: flex; width: calc(100% + 32px); justify-content: space-between; align-items: center; gap: 10px; margin: 16px -16px -16px; padding: 12px 16px; background: none; border: 0; border-top: 1px solid var(--line); text-align: left; font-weight: 650; cursor: pointer; min-height: 48px; }
+.moon-goals-head[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.moon-goals { margin: 16px -16px -16px; padding: 4px 16px 14px; }
+.moon-goals label { display: block; max-width: 320px; }
+.moon-goals input { width: 100%; }
+.moon-goals p { margin: 8px 0 0; }
+.moon-goals-head[aria-expanded="true"] { margin-bottom: 0; }
+@media (max-width: 560px) {
+  .moon-duo { grid-template-columns: 1fr; }
+  .moon-ring { width: 116px; height: 116px; }
+  .moon-badge { width: calc(33.33% - 7px); }
+}
+/* Movement only when the page is opened */
+.moon-anim .moon-ring-fg { animation: moonRing 1.2s ease-out both; }
+@keyframes moonRing { from { stroke-dashoffset: 377; } }
+.moon-anim .moon-bar, .moon-anim .moon-wbar { animation: moonGrowY .8s cubic-bezier(.2, .8, .2, 1) both; animation-delay: var(--d, .1s); }
+@keyframes moonGrowY { from { transform: scaleY(0); } }
+.moon-anim .moon-fill, .moon-anim .moon-fc-now { animation: moonGrowX 1.1s cubic-bezier(.2, .8, .2, 1) both .2s; }
+.moon-anim .moon-fc-proj { animation: moonGrowX 1s ease-out both 1.1s; }
+@keyframes moonGrowX { from { transform: scaleX(0); } }
+.moon-anim .moon-dot.on { animation: moonPop .5s cubic-bezier(.3, 1.6, .5, 1) both; animation-delay: var(--d); }
+.moon-anim .moon-flame { animation: moonFlicker 1.6s ease-in-out 2; transform-origin: bottom; }
+@keyframes moonFlicker { 50% { transform: scale(1.15) rotate(-4deg); } }
+.moon-anim .moon-badge.won .moon-medal, .moon-anim .moon-trophy { animation: moonPop .7s cubic-bezier(.3, 1.6, .5, 1) both; animation-delay: var(--d, .3s); }
+@keyframes moonPop { from { transform: scale(0) rotate(-25deg); } }
+.moon-anim .moon-shine { animation: moonShine 1.4s .5s ease-in-out both; }
+@keyframes moonShine { to { left: 130%; } }
+.moon-anim .moon-confetti i { display: block; animation: moonConfetti 1.6s ease-out both; animation-delay: calc(var(--d) + .9s); }
+@keyframes moonConfetti { from { transform: translateY(0) rotate(0); opacity: 1; } to { transform: translateY(60px) rotate(300deg); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .moon-card *, .moon-card *::before { animation: none !important; } }
 .earn-days { list-style: none; margin: 0; padding: 0; }
 .earn-days li { display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
 .earn-days li:last-child { border-bottom: 0; }
@@ -650,7 +735,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.1.5';
+const APP_VERSION = '2.2.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -1364,6 +1449,7 @@ function enterApp() {
 
 function go(page) {
   S.page = page;
+  if (page === 'earnings') S.moonAnim = true;
   render();
   window.scrollTo(0, 0);
 }
@@ -1510,12 +1596,13 @@ function moon() {
   if (!m.types) {
     const type = { id: 'wt_1', name: m.name || 'Work type 1', fixed: true, rate: Number(m.rate) || 0, delay: m.delay ?? 2 };
     return {
+      goals: m.goals || {},
       types: m.rate || (m.log || []).length ? [type] : [],
       log: (m.log || []).map(day => ({ id: day.id, date: day.date, type: 'wt_1', reads: Number(day.studies) || 0,
         amount: (Number(day.studies) || 0) * (Number(day.rate) || 0), delay: m.delay ?? 2 }))
     };
   }
-  return { types: m.types, log: m.log || [] };
+  return { types: m.types, log: m.log || [], goals: m.goals || {} };
 }
 const setMoon = changes => { S.data.moon = { ...moon(), ...changes }; };
 const addMonths = (key, n) => {
@@ -1542,6 +1629,213 @@ function expectedIncomeHtml(income) {
         <div class="expect-sum"><span>${inr(income)}</span><span class="expect-op">+</span><span class="expect-extra">${inr(extra)}</span><span class="expect-op">=</span><strong>${inr(income + extra)}</strong></div>
       </div>`;
     }).join('')}</div>`;
+}
+
+/* ---------- Moonlights: daily motivation ----------
+   Worked out from the log each time (all work types together). Only the monthly
+   goal the user sets is stored, in S.data.moon.goals = { amount }; the daily
+   target is worked out from it. */
+
+const dateKey = date => `${monthKey(date)}-${String(date.getDate()).padStart(2, '0')}`;
+const addDays = (key, n) => {
+  const [year, month, day] = key.split('-').map(Number);
+  return dateKey(new Date(year, month - 1, day + n));
+};
+const readsText = n => (n === 1 ? '1 read' : `${n.toLocaleString('en-IN')} reads`);
+
+function moonStats(m, today) {
+  const byDate = new Map();
+  const byMonth = new Map();
+  for (const day of m.log) {
+    const row = byDate.get(day.date) || { reads: 0, net: 0 };
+    row.reads += Number(day.reads) || 0;
+    row.net += netOf(day);
+    byDate.set(day.date, row);
+    const month = byMonth.get(day.date.slice(0, 7)) || { reads: 0, net: 0 };
+    month.reads += Number(day.reads) || 0;
+    month.net += netOf(day);
+    byMonth.set(day.date.slice(0, 7), month);
+  }
+  const todayKey = dateKey(today);
+  const readsOn = key => (byDate.get(key) || {}).reads || 0;
+
+  // Days in a row with work, counting back from today (or from yesterday while today is still empty)
+  let streak = 0;
+  for (let key = readsOn(todayKey) ? todayKey : addDays(todayKey, -1); readsOn(key) > 0; key = addDays(key, -1)) streak++;
+  const worked = [...byDate.keys()].filter(key => readsOn(key) > 0).sort();
+  let bestStreak = 0, run = 0, prev = '';
+  let record = 0, newBest = null;
+  for (const key of worked) {
+    run = prev && addDays(prev, 1) === key ? run + 1 : 1;
+    bestStreak = Math.max(bestStreak, run);
+    prev = key;
+    if (readsOn(key) > record) {
+      if (record > 0) newBest = { date: key, reads: readsOn(key), old: record };
+      record = readsOn(key);
+    }
+  }
+  // Show a new record only for a week after it was set
+  if (newBest && (newBest.date < addDays(todayKey, -6) || newBest.date > todayKey)) newBest = null;
+
+  const sumDays = (from, to) => { let total = 0; for (let i = from; i <= to; i++) total += readsOn(addDays(todayKey, -i)); return total; };
+  const nowKey = monthKey(today);
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const month = byMonth.get(nowKey) || { reads: 0, net: 0 };
+  return {
+    todayReads: readsOn(todayKey),
+    todayNet: (byDate.get(todayKey) || {}).net || 0,
+    streak, bestStreak, newBest,
+    last7: sumDays(0, 6), prev7: sumDays(7, 13),
+    week: Array.from({ length: 7 }, (_, i) => addDays(todayKey, i - 6)).map(key => ({ key, reads: readsOn(key) })),
+    daysInMonth,
+    days: Array.from({ length: daysInMonth }, (_, i) => readsOn(`${nowKey}-${String(i + 1).padStart(2, '0')}`)),
+    monthReads: month.reads,
+    monthNet: month.net,
+    // Reads per rupee, to turn a ₹ target into reads: this month's mix, or all work if none yet
+    readsPerRupee: month.net ? month.reads / month.net
+      : (all => (all.net ? all.reads / all.net : 0))([...byMonth.values()].reduce((t, x) => ({ reads: t.reads + x.reads, net: t.net + x.net }), { reads: 0, net: 0 })),
+    priorNet: month.net - ((byDate.get(todayKey) || {}).net || 0),
+    payMonths: [...new Set(m.log.filter(day => day.date.startsWith(nowKey)).map(payMonth))].sort(),
+    bestDay: record,
+    bestMonthReads: Math.max(0, ...[...byMonth.values()].map(x => x.reads)),
+    bestMonthNet: Math.max(0, ...[...byMonth.values()].map(x => x.net))
+  };
+}
+
+function moonCardHtml(m, today) {
+  const s = moonStats(m, today);
+  const goals = m.goals || {};
+  const goal = Number(goals.amount) || 0;
+  const dayNo = today.getDate();
+  // Daily target: what is still needed this month (before today's work) shared over the days left, today included
+  const daysFromToday = s.daysInMonth - dayNo + 1;
+  const target = goal ? Math.max(0, (goal - s.priorNet) / daysFromToday) : 0;
+  const targetReads = target && s.readsPerRupee ? Math.ceil(target * s.readsPerRupee) : 0;
+  const weekday = key => new Intl.DateTimeFormat('en-IN', { weekday: 'long' }).format(new Date(key + 'T00:00:00'));
+  const monthName = new Intl.DateTimeFormat('en-IN', { month: 'long' }).format(today);
+  const monthEnd = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(new Date(today.getFullYear(), today.getMonth(), s.daysInMonth));
+  const count = (value, money) => `<span data-count="${Math.round(value)}"${money ? ' data-money="1"' : ''}>${money ? inr(value) : Math.round(value).toLocaleString('en-IN')}</span>`;
+
+  // Today's ring
+  const ringLength = 377;   // 2πr for r = 60
+  const ringPart = target ? Math.min(1, s.todayNet / target) : goal ? 1 : 0;
+  const reached = goal && s.todayNet >= target;
+  const todayNote = !goal ? 'Set a monthly goal below to get a daily target'
+    : reached ? '<span class="moon-chip good">Today\'s target reached ✓</span>'
+    : `${inr(target - s.todayNet)} to go today${targetReads ? ` · about ${readsText(Math.max(1, Math.ceil((target - s.todayNet) * s.readsPerRupee)))}` : ''}`;
+
+  // This month's days; the best day is gold and today is outlined
+  const top = Math.max(...s.days, 1);
+  const bestThisMonth = Math.max(...s.days);
+  const bars = s.days.map((reads, i) => {
+    const cls = ['moon-bar', i + 1 === dayNo ? 'today' : '', i + 1 > dayNo ? 'future' : '', reads && reads === bestThisMonth ? 'best' : ''].filter(Boolean).join(' ');
+    return `<span class="${cls}" style="height:${Math.max(reads ? 4 : 0, reads / top * 100)}%;--d:${(i * .02).toFixed(2)}s" title="${monthName} ${i + 1}: ${readsText(reads)}"></span>`;
+  }).join('');
+
+  // Monthly goal and pace
+  const goalPart = goal ? Math.min(1, s.monthNet / goal) : 0;
+  const daysLeft = s.daysInMonth - dayNo + (s.todayReads ? 0 : 1);
+  const goalNote = !goal ? 'Set a monthly goal below'
+    : s.monthNet >= goal ? 'Goal reached this month. Well done!'
+    : daysLeft > 0 ? `${inr(goal - s.monthNet)} to go · ${daysLeft === 1 ? '1 day' : `${daysLeft} days`} left${s.todayReads ? ' after today' : ''}`
+    : `${inr(goal - s.monthNet)} short of the goal`;
+  const confetti = goal && s.monthNet >= goal
+    ? `<span class="moon-confetti" aria-hidden="true">${Array.from({ length: 14 }, (_, i) => `<i style="--x:${(i * 7 + 4) % 100}%;--d:${(i % 5) * .12}s;--c:var(${['--seg-expense', '--seg-saving', '--seg-left', '--seg-aside'][i % 4]})"></i>`).join('')}</span>` : '';
+
+  // Last 7 days against the 7 before
+  const diff = s.last7 - s.prev7;
+  const weekChip = s.prev7 ? `<span class="moon-chip ${diff >= 0 ? 'good' : 'down'}">${diff >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(diff / s.prev7 * 100))}%</span>`
+    : s.last7 ? '<span class="moon-chip good">New this week</span>' : '';
+  const weekTop = Math.max(s.last7, s.prev7, 1);
+
+  // Month-end forecast from the pace so far
+  const forecast = s.monthNet / dayNo * s.daysInMonth;
+
+  const badges = [
+    ['🔥', '7-day streak', s.bestStreak >= 7],
+    ['🌙', '30-day streak', s.bestStreak >= 30],
+    ['💯', '100 reads in a day', s.bestDay >= 100],
+    ['🏅', '1,000 reads in a month', s.bestMonthReads >= 1000],
+    ['🎯', 'Monthly goal reached', goal > 0 && s.bestMonthNet >= goal]
+  ];
+  const goalsOpen = S.open.has('earn-goals') || !goal;
+  const flame = '<svg class="moon-flame" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-3-1-6 1-9.5z"/></svg>';
+
+  return `<div class="card moon-card${S.moonAnim ? ' moon-anim' : ''}" id="moon-card">
+    <div class="moon-top">
+      <div class="moon-ring" role="img" aria-label="${inr(s.todayNet)} earned today${goal ? ` of a ${inr(target)} daily target` : ''}">
+        <svg viewBox="0 0 140 140" aria-hidden="true"><circle class="moon-ring-bg" cx="70" cy="70" r="60"/><circle class="moon-ring-fg${reached ? ' done' : ''}" cx="70" cy="70" r="60" style="stroke-dasharray:${ringLength};stroke-dashoffset:${(ringLength * (1 - ringPart)).toFixed(1)}"/></svg>
+        <div class="moon-ring-text"><b>${count(s.todayNet, true)}</b><span>${goal ? `of ${inr(target)}` : 'earned'} today</span></div>
+      </div>
+      <div class="moon-side">
+        <div><span class="muted small">Reads today</span><div class="moon-big">${count(s.todayReads)} <span class="moon-unit">${s.todayReads === 1 ? 'read' : 'reads'}</span></div></div>
+        <div class="moon-note small">${todayNote}</div>
+        <div class="moon-streak">${flame}<span><strong>${s.streak === 1 ? '1 day' : `${s.streak} days`}</strong> in a row <span class="muted small">· best ${s.bestStreak}</span></span></div>
+        <div class="moon-dots" aria-label="Last 7 days">${s.week.map((d, i) => `<span class="moon-dot${d.reads ? ' on' : ''}" style="--d:${(i * .08).toFixed(2)}s" title="${esc(weekday(d.key))}: ${readsText(d.reads)}">${esc(weekday(d.key).slice(0, 1))}</span>`).join('')}</div>
+      </div>
+    </div>
+    ${s.newBest ? `<div class="moon-best"><span class="moon-shine" aria-hidden="true"></span><span class="moon-trophy" aria-hidden="true">🏆</span>
+      <div><strong>New best day!</strong><div class="small">${readsText(s.newBest.reads)} on ${esc(weekday(s.newBest.date))}, ${s.newBest.reads - s.newBest.old} more than your old record of ${s.newBest.old}.</div></div></div>` : ''}
+    <div class="moon-sec">
+      <div class="moon-sec-head"><span>${esc(monthName)} so far</span><span class="muted small">${readsText(s.monthReads)}${bestThisMonth ? ` · best day ${bestThisMonth}` : ''}</span></div>
+      <div class="moon-bars">${bars}</div>
+    </div>
+    <div class="moon-sec moon-goal">
+      ${confetti}
+      <div class="moon-sec-head"><span>Monthly goal</span><span class="small"><strong>${count(s.monthNet, true)}</strong>${goal ? ` <span class="muted">of ${inr(goal)}</span>` : ''}</span></div>
+      <div class="moon-track"><span class="moon-fill${goal && s.monthNet >= goal ? ' done' : ''}" style="width:${(goalPart * 100).toFixed(1)}%"></span>${goal ? '<i style="left:33.3%"></i><i style="left:66.6%"></i>' : ''}</div>
+      <div class="muted small">${goalNote}</div>
+    </div>
+    <div class="moon-duo">
+      <div class="moon-mini">
+        <div class="moon-sec-head"><span>Last 7 days</span>${weekChip}</div>
+        <div class="moon-week">
+          <div><span class="moon-wbar" style="height:${Math.round(s.prev7 / weekTop * 50)}px"></span><span class="muted small">7 days before<br><strong>${s.prev7.toLocaleString('en-IN')}</strong></span></div>
+          <div><span class="moon-wbar now" style="height:${Math.round(s.last7 / weekTop * 50)}px"></span><span class="muted small">Last 7 days<br><strong>${count(s.last7)}</strong></span></div>
+        </div>
+        <div class="muted small">${!s.last7 && !s.prev7 ? 'No reads in the last two weeks' : diff === 0 ? 'Same as the 7 days before' : `${readsText(Math.abs(diff))} ${diff > 0 ? 'more' : 'fewer'} than the 7 days before`}</div>
+      </div>
+      <div class="moon-mini">
+        <div class="moon-sec-head"><span>Month-end forecast</span></div>
+        ${s.monthNet ? `<div class="moon-big">${count(forecast, true)}</div>
+        <div class="muted small">by ${esc(monthEnd)} at this pace</div>
+        <div class="moon-fc"><span class="moon-fc-proj"></span><span class="moon-fc-now" style="width:${(s.monthNet / forecast * 100).toFixed(1)}%"></span></div>
+        <div class="muted small">Paid to you in ${s.payMonths.map(monthLabel).map(esc).join(', ')}</div>`
+        : '<div class="muted small">Log work this month to see a forecast.</div>'}
+      </div>
+    </div>
+    <div class="moon-sec">
+      <div class="moon-sec-head"><span>Badges</span><span class="muted small">${badges.filter(b => b[2]).length} of ${badges.length}</span></div>
+      <div class="moon-badges">${badges.map(([icon, label, won], i) => `<div class="moon-badge${won ? ' won' : ''}" style="--d:${(i * .15 + .2).toFixed(2)}s"><span class="moon-medal" aria-hidden="true">${icon}</span>${label}<span class="sr-only">${won ? ', earned' : ', not yet'}</span></div>`).join('')}</div>
+    </div>
+    <button class="moon-goals-head" data-action="toggle-group" data-id="earn-goals" aria-expanded="${goalsOpen}" aria-controls="earn-goals">
+      <span>Set monthly goal <span class="muted small">· ${goal ? `${inr(goal)} · daily target ${inr(target)} for the rest of ${esc(monthName)}` : 'not set'}</span></span>
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    ${goalsOpen ? `<div class="moon-goals" id="earn-goals">
+      <label>Monthly goal, after TDS (₹) <input data-moon-goal="amount" type="number" inputmode="decimal" min="0" step="any" placeholder="Not set" value="${goal || ''}"></label>
+      <p class="muted small">The daily target is what is left of the goal shared over the days left this month, so it goes down on good days and up after a missed day.</p>
+    </div>` : ''}
+  </div>`;
+}
+
+// Count the numbers up and let the CSS draw the ring and bars, once each time the page is opened
+function moonAnimate() {
+  if (!S.moonAnim) return;
+  S.moonAnim = false;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { $('moon-card').classList.remove('moon-anim'); return; }
+  for (const el of document.querySelectorAll('#moon-card [data-count]')) {
+    const to = Number(el.dataset.count);
+    const show = n => { el.textContent = el.dataset.money ? inr(n) : Math.round(n).toLocaleString('en-IN'); };
+    const startAt = performance.now();
+    const step = time => {
+      const p = Math.min(1, (time - startAt) / 1200);
+      show(to * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    show(0);
+    requestAnimationFrame(step);
+  }
 }
 
 function renderEarnings() {
@@ -1585,6 +1879,7 @@ function renderEarnings() {
 
   $('page').innerHTML = `
     <div class="page-head"><div><h2>Moonlights</h2><div class="page-sub">Moonlighting work and when it is paid</div></div></div>
+    ${m.types.length ? moonCardHtml(m, today) : ''}
     ${m.types.length ? `<div class="card">
       <div class="card-head"><h3>Add work</h3></div>
       <form class="card-body earn-form" id="earn-form" novalidate>
@@ -1643,6 +1938,7 @@ function renderEarnings() {
       </div>`}
     </div>`;
   if (!m.types.length) return;
+  moonAnimate();
   $('earn-form').addEventListener('submit', handleEarnSubmit);
   $('earn-type').addEventListener('change', () => { S.earnType = $('earn-type').value; S.earnDate = $('earn-date').value; render(); });
   const preview = () => {
@@ -1744,6 +2040,7 @@ function handleEarnSubmit(event) {
   setMoon({ log: [...moon().log, { id: newId('day'), date, type: type.id, reads, amount, delay: Number(type.delay) || 0, tds }] });
   S.earnType = type.id;
   S.earnDate = date;
+  S.moonAnim = true;
   render();
   changed();
   toast(`Added ${inr(afterTds(amount, tds))}${tds ? ` after ${tds}% TDS` : ''} for ${type.name}, paid in ${monthLabel(addMonths(date.slice(0, 7), Number(type.delay) || 0))}.`);
@@ -2857,6 +3154,15 @@ function handlePageChange(event) {
   const input = event.target;
   if (input.id === 'set-theme') { setTheme(input.value); return; }
   if (input.id === 'due-pick') { S.duePick = Number(input.value); render(); return; }
+  if (input.dataset.moonGoal) {
+    const value = Math.max(0, Number(input.value) || 0);
+    const goals = { ...moon().goals };
+    if (value) goals[input.dataset.moonGoal] = value; else delete goals[input.dataset.moonGoal];
+    setMoon({ goals });
+    changed();
+    render();
+    return;
+  }
   if (input.dataset.wt) {
     const id = input.closest('tr').dataset.id;
     const field = input.dataset.wt;
