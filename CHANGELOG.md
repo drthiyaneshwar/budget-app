@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.0 - 2026-11-08
+
+- When changes cannot sync, the footer now says why, for example an expired token or no connection.
+- A Sync now button in the footer tries again straight away, so you no longer need to lock and unlock.
+- The app also tries to sync again when you come back to it.
+
 ## 1.5.0 - 2026-11-02
 
 - Home leads with the total to transfer as one large figure, with income, money left and a buffer label underneath.

@@ -113,6 +113,10 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .page-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
 .page-sub { color: var(--muted); font-size: .9rem; }
 .foot { max-width: 1040px; margin: 0 auto; padding: 4px 16px 24px; color: var(--muted); font-size: .8125rem; }
+.sync-note { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 8px; padding: 8px 12px; background: var(--warn-bg); color: var(--warn); border-radius: var(--radius-sm); font-size: .875rem; }
+.sync-note.bad { background: var(--bad-bg); color: var(--bad); }
+.sync-note span { flex: 1 1 200px; }
+.sync-note .btn { min-height: 38px; padding: 5px 12px; font-size: .875rem; }
 
 /* Cards and figures */
 .cur { font-size: .62em; font-weight: 600; color: var(--muted); margin-right: .08em; vertical-align: .32em; }
@@ -353,7 +357,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -472,6 +476,7 @@ const S = {
   sha: null,
   latest: null,   // newest encrypted file text
   syncing: null,
+  syncError: '',  // why the last sync failed, shown in the footer
   page: 'home',
   open: new Set(),
   setup: null
@@ -618,7 +623,9 @@ function syncNow() {
         await putFile(sent);
         if (sent === S.latest) setPending(false);
       }
+      S.syncError = '';
     } catch (error) {
+      S.syncError = error instanceof GitHubError ? error.message : 'Could not reach GitHub. Check your connection.';
       toast(error instanceof GitHubError ? error.message : 'Could not reach GitHub. Your change is saved on this device and will sync later.', true);
     } finally {
       S.syncing = null;
@@ -834,6 +841,7 @@ async function lock() {
   if (saveTimer) await saveNow();
   if (S.syncing) await S.syncing;
   S.key = S.token = S.data = S.sha = S.latest = null;
+  S.syncError = '';
   S.open.clear();
   $('page').innerHTML = '';
   show('screen-unlock');
@@ -865,7 +873,32 @@ function render() {
 function updateFooter() {
   const parts = [`Version ${APP_VERSION}`, navigator.onLine ? 'Online' : 'Offline'];
   if (hasUnsavedWork()) parts.push('changes not yet synced');
-  $('footer').textContent = parts.join(' · ');
+  const footer = $('footer');
+  footer.textContent = parts.join(' · ');
+  // Only explain when changes are stuck, not during the short wait after an edit.
+  if (!isPending() || saveTimer || !S.key) return;
+  const note = document.createElement('div');
+  const text = document.createElement('span');
+  note.className = 'sync-note';
+  note.setAttribute('role', 'status');
+  if (S.syncing) {
+    text.textContent = 'Syncing your changes to GitHub…';
+  } else if (!navigator.onLine) {
+    text.textContent = 'Your changes are saved on this device. They will sync when you are back online.';
+  } else {
+    if (S.syncError) note.classList.add('bad');
+    text.textContent = `Not synced. ${S.syncError || 'Your changes are saved on this device only.'}`;
+  }
+  note.append(text);
+  if (!S.syncing && navigator.onLine) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn';
+    button.dataset.action = 'sync-now';
+    button.textContent = 'Sync now';
+    note.append(button);
+  }
+  footer.append(note);
 }
 
 function renderHome() {
@@ -1283,6 +1316,10 @@ function start() {
   $('page').addEventListener('change', handlePageChange);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden' && saveTimer) saveNow();
+    if (document.visibilityState === 'visible' && isPending() && S.key) syncNow();
+  });
+  $('footer').addEventListener('click', event => {
+    if (event.target.closest('[data-action="sync-now"]')) syncNow();
   });
   window.addEventListener('online', () => { updateFooter(); syncNow(); });
   window.addEventListener('offline', updateFooter);
