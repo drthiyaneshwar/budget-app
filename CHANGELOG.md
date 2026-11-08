@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.36.1 - 2026-11-08
+
+- On a work type's page, the Date column shows only the day of the month, since each table is already headed by its month.
+
 ## 1.36.0 - 2026-11-08
 
 - Earnings: Income by date is replaced by Income by type. It lists each work type with this month's reads and pay, and the all-time total.
