@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.9.1 - 2026-11-08
+
+- Summary by heading no longer adds expenses and savings into one total. Each group shows its own total.
+
 ## 1.9.0 - 2026-11-08
 
 - When you open an account in the transfer list, it shows its headings first, each with its monthly total and number of entries. Select a heading to see its entries.
