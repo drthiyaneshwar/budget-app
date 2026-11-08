@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.4 - 2026-11-08
+
+- Large screens: Where your income goes sits beside Total to transfer in the top row. Below, the left column has Expected income, the three boxes and Coming up; the right column has Transfers and Summary by heading. Spacing is tighter so Home fits on one screen on most computers.
+- Expected income no longer shows the small explanation line.
+
 ## 2.1.3 - 2026-11-08
 
 - On large screens, Home uses the full width and places the same cards in two columns: expected income, where your income goes and the three boxes on the left; transfers, Coming up and Summary by heading on the right. Phones and small screens keep one column.
