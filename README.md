@@ -38,6 +38,8 @@ The file is plain JSON:
 }
 ```
 
+The data can also have `"incomeSources": [{ "id": "inc_1", "name": "", "amount": 0 }]`. When it has any, monthly income is their total.
+
 An entry can also have `"setAside": true` for money kept ready for a cost that may not happen. It is still counted in the transfer, and Home shows it separately.
 
 Account type is `Income`, `Spending`, `Sinking` or `Savings`. Heading kind is `expense` or `savings`. Frequency is `Monthly`, `Quarterly` or `Yearly`.

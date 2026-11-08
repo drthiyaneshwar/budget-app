@@ -209,6 +209,17 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .summary-toggle:hover { background: var(--card-raised); }
 .summary-toggle:focus-visible { outline-offset: -2px; }
 .summary-toggle[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.income-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; font-size: .875rem; font-weight: 600; }
+.income-head .btn { min-height: 38px; padding: 5px 12px; font-size: .875rem; }
+.income-table { margin-bottom: 8px; }
+.income-table th, .income-table td { padding: 6px 4px; border-bottom: 0; background: none; }
+.income-table td:nth-child(2) { width: 38%; }
+.income-table input { width: 100%; }
+.income-table td.num, .income-table input[type="number"] { text-align: right; }
+.income-table .actions { width: 1%; white-space: nowrap; }
+.income-table .actions .btn { min-height: 38px; padding: 5px 10px; font-size: .8125rem; }
+.income-total { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 10px 12px; margin-bottom: 16px; background: var(--card-raised); border-radius: var(--radius-sm); font-variant-numeric: tabular-nums; }
+.income-total strong { font-size: 1.1rem; }
 .sec-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 2px; }
 .sec-title .kind-tag { margin-left: 0; vertical-align: 0; }
 .sec-actions { padding: 12px 16px; border-bottom: 1px solid var(--line); }
@@ -312,6 +323,10 @@ dialog h3 { margin-bottom: 12px; }
   .group.aside { grid-column: 1 / -1; }
   .group-head { padding-left: 12px; }
   .h-entries { margin-left: 12px; }
+  .income-table thead { display: none; }
+  .income-table tr { display: grid; grid-template-columns: 1fr auto; gap: 6px 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .income-table td { display: block; width: auto !important; padding: 0; }
+  .income-table td:first-child { grid-column: 1 / -1; }
   .group-body { padding: 4px 6px 8px; }
   .group-body .h-row { flex-wrap: wrap; gap: 2px 6px; padding: 8px 2px; }
   .group-body .h-name { flex: 1 1 calc(100% - 24px); }
@@ -494,7 +509,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.13.0';
+const APP_VERSION = '1.14.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -831,7 +846,8 @@ function mergeData(base, local, remote) {
     settings,
     accounts: mergeList(base && base.accounts, local.accounts, remote.accounts),
     sections: mergeList(base && base.sections, local.sections, remote.sections),
-    entries: mergeList(base && base.entries, local.entries, remote.entries)
+    entries: mergeList(base && base.entries, local.entries, remote.entries),
+    incomeSources: mergeList(base && base.incomeSources, local.incomeSources, remote.incomeSources)
   };
 }
 
@@ -967,7 +983,8 @@ function validateData(data) {
   if (!ok) throw new Error('This file does not look like budget data.');
   return {
     settings: { income: Number(data.settings.income) || 0, buffer: Number(data.settings.buffer) || 0 },
-    accounts: data.accounts, sections: data.sections, entries: data.entries
+    accounts: data.accounts, sections: data.sections, entries: data.entries,
+    ...(Array.isArray(data.incomeSources) ? { incomeSources: data.incomeSources } : {})
   };
 }
 
@@ -1202,7 +1219,15 @@ function go(page) {
   window.scrollTo(0, 0);
 }
 
+// When income sources are listed, the monthly income is their total.
+function syncIncome() {
+  const sources = S.data.incomeSources;
+  if (!Array.isArray(sources) || !sources.length) return;
+  S.data.settings.income = sources.reduce((total, source) => total + (Number(source.amount) || 0), 0);
+}
+
 function render() {
+  syncIncome();
   document.querySelectorAll('.tab').forEach(tab => {
     if (tab.dataset.page === S.page) tab.setAttribute('aria-current', 'page');
     else tab.removeAttribute('aria-current');
@@ -1560,15 +1585,34 @@ function accountsCard() {
     </div>`;
 }
 
+// Income: one figure, or a list of sources that add up to it
+function incomeSourcesHtml() {
+  const sources = S.data.incomeSources || [];
+  if (!sources.length) {
+    return `<label>Monthly income, into the salary account (₹)
+        <input id="set-income" type="number" inputmode="decimal" min="0" step="any" value="${esc(S.data.settings.income)}">
+      </label>
+      <p class="small"><button type="button" class="btn link" data-action="add-income">Split into income sources</button></p>`;
+  }
+  return `<div class="income-head"><span>Income sources, a month</span><button type="button" class="btn" data-action="add-income">Add source</button></div>
+    <table class="income-table" data-list="incomeSources">
+      <thead><tr><th>Source</th><th class="num">Amount (₹)</th><th><span hidden>Actions</span></th></tr></thead>
+      <tbody>${sources.map(source => `<tr data-id="${esc(source.id)}">
+        <td><input aria-label="Income source name" data-field="name" value="${esc(source.name)}" placeholder="For example, salary"></td>
+        <td><input aria-label="Amount a month for ${esc(source.name)}" data-field="amount" type="number" inputmode="decimal" min="0" step="any" value="${esc(source.amount)}"></td>
+        <td class="actions"><button type="button" class="btn danger" data-action="delete-income" data-id="${esc(source.id)}" aria-label="Delete ${esc(source.name)}">Delete</button></td>
+      </tr>`).join('')}</tbody>
+    </table>
+    <div class="income-total"><span>Total monthly income</span><strong id="income-total">${inr(S.data.settings.income)}</strong></div>`;
+}
+
 function renderSettings() {
   $('page').innerHTML = `
     <div class="page-head"><h2>Settings</h2></div>
     <div class="card">
       <div class="card-head"><h3>Income and buffer</h3></div>
       <div class="card-body">
-        <label>Monthly income, into the salary account (₹)
-          <input id="set-income" type="number" inputmode="decimal" min="0" step="any" value="${esc(S.data.settings.income)}">
-        </label>
+        ${incomeSourcesHtml()}
         <label style="margin-bottom:0">Buffer, the minimum to keep in salary (₹)
           <input id="set-buffer" type="number" inputmode="decimal" min="0" step="any" value="${esc(S.data.settings.buffer)}">
         </label>
@@ -1786,6 +1830,24 @@ const actions = {
     render();
     changed();
   },
+  'add-income'() {
+    const sources = S.data.incomeSources || (S.data.incomeSources = []);
+    // The first time, keep the current income as the first source
+    if (!sources.length && S.data.settings.income > 0) sources.push({ id: newId('inc'), name: 'Main income', amount: S.data.settings.income });
+    sources.push({ id: newId('inc'), name: '', amount: 0 });
+    render();
+    changed();
+    const inputs = document.querySelectorAll('[data-list="incomeSources"] input[data-field="name"]');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  },
+  async 'delete-income'(id) {
+    const source = S.data.incomeSources.find(item => item.id === id);
+    if (!await ask(`Delete the income source "${source.name || 'unnamed'}"?`, 'Delete', true)) return;
+    S.data.incomeSources = S.data.incomeSources.filter(item => item.id !== id);
+    syncIncome();
+    render();
+    changed();
+  },
   backup: downloadBackup,
   remember: openRememberDialog,
   lock,
@@ -1808,7 +1870,13 @@ function handlePageChange(event) {
   const table = input.closest('[data-list]');
   if (!table || !input.dataset.field) return;
   const row = S.data[table.dataset.list].find(item => item.id === input.closest('tr').dataset.id);
-  row[input.dataset.field] = input.value.trim();
+  if (table.dataset.list === 'incomeSources' && input.dataset.field === 'amount') {
+    row.amount = Math.max(0, Number(input.value) || 0);
+    syncIncome();
+    $('income-total').textContent = inr(S.data.settings.income);
+  } else {
+    row[input.dataset.field] = input.value.trim();
+  }
   changed();
 }
 

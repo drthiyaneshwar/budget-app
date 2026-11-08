@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.14.0 - 2026-11-08
+
+- Income can be split into sources in Settings, each with a name and a monthly amount. Monthly income is their total.
+- Select Split into income sources to start. Your current income becomes the first source.
+- Income sources from two devices are combined like entries.
+
 ## 1.13.0 - 2026-11-08
 
 - Accounts moved into Settings, as an Accounts section you select to open. The Accounts tab is gone, so there are three tabs: Home, Entries and Settings.
