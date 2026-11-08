@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.10.0 - 2026-11-08
+
+- The Entries page shows only the headings at first, each with its monthly and yearly total, number of entries and kind.
+- Select a heading to see its entries and the Edit heading and Add entry buttons. Select it again to close it.
+- A heading stays open after you add an entry to it, and a new heading opens straight away.
+
 ## 1.9.1 - 2026-11-08
 
 - Summary by heading no longer adds expenses and savings into one total. Each group shows its own total.
