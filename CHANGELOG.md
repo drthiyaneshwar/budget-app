@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.31.0 - 2026-11-08
+
+- Earnings now has work types. Each type is either a fixed pay per read, which you can change, or asks for the pay each time you add work. Each type has its own pay delay in months.
+- Add work by choosing a type, the date and the number of reads, plus the pay for types that ask.
+- Money coming in groups the work by the month it will be paid. Expected income on Home adds everything paid next month.
+- Work logged in version 1.30.0 becomes the first work type automatically.
+
 ## 1.30.0 - 2026-11-08
 
 - New Earnings tab, after Home, for extra work paid per study some months later. Add each day's studies; the app works out the amount, totals each month, and shows the month it will be paid.

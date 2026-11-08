@@ -286,7 +286,12 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .earn-days { list-style: none; margin: 0; padding: 0; }
 .earn-days li { display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
 .earn-days li:last-child { border-bottom: 0; }
-.earn-days li > span:first-child { flex: 1; }
+.earn-day { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.earn-pay { list-style: none; margin: 0; padding: 0; }
+.earn-pay li { padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.earn-pay li:last-child { border-bottom: 0; }
+.earn-pay-head { display: flex; justify-content: space-between; gap: 12px; font-weight: 600; max-width: 560px; }
+.earn-pay-part { display: flex; justify-content: space-between; gap: 12px; font-size: .875rem; padding: 2px 0; max-width: 560px; font-variant-numeric: tabular-nums; }
 .earn-days .btn { min-height: 34px; padding: 4px 10px; font-size: .8125rem; }
 .due-aside { margin-top: 8px; padding: 8px 10px; max-width: 520px; background: var(--aside-bg); border-radius: var(--radius-sm); }
 .due-aside-head { display: flex; justify-content: space-between; gap: 12px; color: var(--aside); font-size: .8125rem; font-weight: 700; margin-bottom: 2px; }
@@ -403,7 +408,6 @@ dialog h3 { margin-bottom: 12px; }
   .group-head { padding-left: 12px; }
   .h-entries { margin-left: 12px; }
   .due-month { padding: 12px; grid-template-columns: 1fr; }
-  .earn-table th, .earn-table td { padding: 8px 10px; font-size: .875rem; }
   .earn-days li { flex-wrap: wrap; gap: 4px 12px; }
   .due-closed .due-toggle { flex-wrap: wrap; }
   .due-closed .due-toggle-sum { flex-basis: 100%; justify-content: flex-start; padding-left: 24px; }
@@ -599,7 +603,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.30.0';
+const APP_VERSION = '1.31.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -943,6 +947,7 @@ function mergeData(base, local, remote) {
     incomeSources: mergeList(base && base.incomeSources, local.incomeSources, remote.incomeSources),
     moon: (local.moon || remote.moon) ? {
       ...(remote.moon || {}), ...(local.moon || {}),
+      types: mergeList(base && base.moon && base.moon.types, (local.moon || {}).types, (remote.moon || {}).types),
       log: mergeList(base && base.moon && base.moon.log, (local.moon || {}).log, (remote.moon || {}).log)
     } : undefined
   };
@@ -1432,48 +1437,46 @@ function upcomingMonths(count) {
 }
 
 /* ---------- Earnings: extra work paid some months later ----------
-   S.data.moon = { name, rate, delay, log: [{ id, date: 'YYYY-MM-DD', studies, rate }] }.
-   Work done in a month is paid `delay` months later. Each day keeps the rate
-   it was logged at, so changing the rate does not change past days. */
+   S.data.moon = {
+     types: [{ id, name, fixed, rate, delay }],   // fixed: true = set pay per read; false = ask the pay each time
+     log: [{ id, date: 'YYYY-MM-DD', type, reads, amount, delay }]
+   }
+   Each day keeps its amount and pay delay as logged, so later changes to a type
+   do not change past days. Names and rates live only in the encrypted budget. */
 
-const moon = () => S.data.moon || { name: '', rate: '', delay: 2, log: [] };
+function moon() {
+  const m = S.data.moon || {};
+  // Version 1.30.0 kept one rate; turn it into the first work type
+  if (!m.types) {
+    const type = { id: 'wt_1', name: m.name || 'Work type 1', fixed: true, rate: Number(m.rate) || 0, delay: m.delay ?? 2 };
+    return {
+      types: m.rate || (m.log || []).length ? [type] : [],
+      log: (m.log || []).map(day => ({ id: day.id, date: day.date, type: 'wt_1', reads: Number(day.studies) || 0,
+        amount: (Number(day.studies) || 0) * (Number(day.rate) || 0), delay: m.delay ?? 2 }))
+    };
+  }
+  return { types: m.types, log: m.log || [] };
+}
+const setMoon = changes => { S.data.moon = { ...moon(), ...changes }; };
 const addMonths = (key, n) => {
   const [year, month] = key.split('-').map(Number);
   return monthKey(new Date(year, month - 1 + n, 1));
 };
-const dayAmount = day => (Number(day.studies) || 0) * (Number(day.rate) || 0);
-
-// Totals by the month the work was done
-function earningsByMonth() {
-  const months = new Map();
-  for (const day of moon().log) {
-    const key = day.date.slice(0, 7);
-    const row = months.get(key) || { key, studies: 0, amount: 0, days: 0 };
-    row.studies += Number(day.studies) || 0;
-    row.amount += dayAmount(day);
-    row.days += 1;
-    months.set(key, row);
-  }
-  return [...months.values()].sort((a, b) => b.key.localeCompare(a.key));
-}
+const typeOf = id => moon().types.find(type => type.id === id);
+const payMonth = day => addMonths(day.date.slice(0, 7), Number(day.delay) || 0);
 
 // Money from extra work that arrives in a given month
-function earningsPaidIn(key) {
-  const workMonth = addMonths(key, -(Number(moon().delay) || 0));
-  return moon().log.filter(day => day.date.startsWith(workMonth)).reduce((total, day) => total + dayAmount(day), 0);
-}
+const earningsPaidIn = key => moon().log.filter(day => payMonth(day) === key).reduce((total, day) => total + (Number(day.amount) || 0), 0);
 
 // Home: next month's income, with the extra work paid that month
 function expectedIncomeHtml(income) {
-  const m = moon();
-  if (!m.log.length && !m.rate) return '';
+  if (!moon().types.length) return '';
   const next = upcomingMonths(2)[1];
   const extra = earningsPaidIn(next.key);
-  const workMonth = monthLabel(addMonths(next.key, -(Number(m.delay) || 0)));
   return `<div class="card expect">
       <div class="expect-title">Expected income in ${esc(next.label)}</div>
       <div class="expect-sum"><span>${inr(income)}</span><span class="expect-op">+</span><span class="expect-extra">${inr(extra)}</span><span class="expect-op">=</span><strong>${inr(income + extra)}</strong></div>
-      <div class="small muted">Regular income + ${esc(m.name || 'extra work')} done in ${esc(workMonth)}</div>
+      <div class="small muted">Regular income + extra work paid in ${esc(next.label)}</div>
     </div>`;
 }
 
@@ -1481,70 +1484,107 @@ function renderEarnings() {
   const m = moon();
   const today = new Date();
   const todayKey = `${monthKey(today)}-${String(today.getDate()).padStart(2, '0')}`;
-  const months = earningsByMonth();
-  const delay = Number(m.delay) || 0;
-  const thisMonth = months.find(row => row.key === monthKey(today));
-  const recent = [...m.log].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 31);
+  const chosen = typeOf(S.earnType) || m.types[0];
   const dayLabel = date => new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', weekday: 'short' }).format(new Date(date + 'T00:00:00'));
+  const typeName = id => (typeOf(id) || {}).name || 'Deleted type';
+
+  // Totals by the month money arrives, with the work behind it
+  const byPay = new Map();
+  for (const day of m.log) {
+    const key = payMonth(day);
+    const row = byPay.get(key) || { key, amount: 0, parts: new Map() };
+    row.amount += Number(day.amount) || 0;
+    const part = row.parts.get(day.type) || { reads: 0, amount: 0, work: day.date.slice(0, 7) };
+    part.reads += Number(day.reads) || 0;
+    part.amount += Number(day.amount) || 0;
+    row.parts.set(day.type, part);
+    byPay.set(key, row);
+  }
+  const payRows = [...byPay.values()].sort((a, b) => b.key.localeCompare(a.key));
+  const thisMonth = m.log.filter(day => day.date.startsWith(monthKey(today)));
+  const thisMonthAmount = thisMonth.reduce((t, day) => t + (Number(day.amount) || 0), 0);
+  const recent = [...m.log].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 40);
+
   $('page').innerHTML = `
-    <div class="page-head"><div><h2>Earnings</h2><div class="page-sub">Extra work, paid ${delay === 1 ? '1 month' : `${delay} months`} later</div></div></div>
-    <div class="card">
-      <div class="card-head"><h3>Add a day's work</h3></div>
+    <div class="page-head"><div><h2>Earnings</h2><div class="page-sub">Extra work and when it is paid</div></div></div>
+    ${m.types.length ? `<div class="card">
+      <div class="card-head"><h3>Add work</h3></div>
       <form class="card-body earn-form" id="earn-form" novalidate>
-        <label>Date <input id="earn-date" type="date" value="${todayKey}" max="${todayKey}"></label>
-        <label>Studies read <input id="earn-studies" type="number" inputmode="numeric" min="0" step="1"></label>
-        <div class="earn-preview" id="earn-preview">${m.rate ? `At ${inr(Number(m.rate))} a study` : 'Set the rate per study below first.'}</div>
+        <label>Type <select id="earn-type">${m.types.map(t => `<option value="${esc(t.id)}"${t.id === chosen.id ? ' selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>
+        <label>Date <input id="earn-date" type="date" value="${esc(S.earnDate || todayKey)}" max="${todayKey}"></label>
+        <label>Reads <input id="earn-reads" type="number" inputmode="numeric" min="1" step="1" value="${chosen.fixed ? '' : '1'}"></label>
+        ${chosen.fixed ? '' : '<label>Pay for this work (₹) <input id="earn-amount" type="number" inputmode="decimal" min="0" step="any"></label>'}
+        <div class="earn-preview" id="earn-preview">${chosen.fixed ? `At ${inr(Number(chosen.rate) || 0)} a read` : 'Enter what this work pays'} · paid ${chosen.delay == 1 ? 'next month' : `after ${Number(chosen.delay) || 0} months`}</div>
         <p class="error" id="earn-error" role="alert"></p>
         <button class="btn primary">Add</button>
       </form>
+    </div>` : ''}
+    <div class="card">
+      <div class="card-head"><h3>Money coming in</h3><span class="subtotals">This month's work so far: ${inr(thisMonthAmount)}</span></div>
+      ${payRows.length ? `<ul class="earn-pay">${payRows.map(row => `<li>
+          <div class="earn-pay-head"><span>Paid in ${esc(monthLabel(row.key))}</span><strong>${inr(row.amount)}</strong></div>
+          ${[...row.parts.entries()].map(([type, part]) => `<div class="earn-pay-part"><span>${esc(typeName(type))} <span class="muted">· ${part.reads === 1 ? '1 read' : `${part.reads} reads`}, work in ${esc(monthLabel(part.work))}</span></span><span class="num">${inr(part.amount)}</span></div>`).join('')}
+        </li>`).join('')}</ul>` : '<p class="empty">No work logged yet.</p>'}
     </div>
     <div class="card">
-      <div class="card-head"><h3>By month</h3><span class="subtotals">${thisMonth ? `This month so far: ${thisMonth.studies} studies, ${inr(thisMonth.amount)}` : 'Nothing logged this month yet'}</span></div>
-      ${months.length ? `<table class="earn-table">
-        <thead><tr><th>Work done in</th><th class="num">Studies</th><th class="num">Earned</th><th>Paid in</th></tr></thead>
-        <tbody>${months.map(row => `<tr><td>${esc(monthLabel(row.key))}</td><td class="num">${row.studies}</td><td class="num">${inr(row.amount)}</td><td>${esc(monthLabel(addMonths(row.key, delay)))}</td></tr>`).join('')}</tbody>
-      </table>` : '<p class="empty">No work logged yet.</p>'}
-    </div>
-    <div class="card">
-      <div class="card-head"><h3>Days logged</h3><span class="subtotals">Latest first</span></div>
+      <div class="card-head"><h3>Work logged</h3><span class="subtotals">Latest first</span></div>
       ${recent.length ? `<ul class="earn-days">${recent.map(day => `<li>
-          <span>${esc(dayLabel(day.date))}</span>
-          <span class="muted">${Number(day.studies) || 0} × ${inr(Number(day.rate) || 0)}</span>
-          <strong class="num">${inr(dayAmount(day))}</strong>
+          <span class="earn-day"><span>${esc(dayLabel(day.date))}</span><span class="muted small">${esc(typeName(day.type))} · ${Number(day.reads) === 1 ? '1 read' : `${Number(day.reads) || 0} reads`}</span></span>
+          <strong class="num">${inr(Number(day.amount) || 0)}</strong>
           <button type="button" class="btn danger" data-action="delete-day" data-id="${esc(day.id)}" aria-label="Delete ${esc(dayLabel(day.date))}">Delete</button>
-        </li>`).join('')}</ul>` : '<p class="empty">Days you add appear here.</p>'}
+        </li>`).join('')}</ul>` : '<p class="empty">Work you add appears here.</p>'}
     </div>
     <div class="card">
-      <div class="card-head"><h3>Settings</h3></div>
-      <div class="card-body calc-grid">
-        <label>Name <input id="earn-name" value="${esc(m.name || '')}" placeholder="For example, reporting work"></label>
-        <label>Pay per study (₹) <input id="earn-rate" type="number" inputmode="decimal" min="0" step="any" value="${esc(m.rate ?? '')}"></label>
-        <label>Paid after (months) <input id="earn-delay" type="number" inputmode="numeric" min="0" max="12" step="1" value="${esc(delay)}"></label>
-      </div>
+      <div class="card-head"><h3>Work types</h3><button type="button" class="btn" data-action="add-work-type">Add type</button></div>
+      ${m.types.length ? `<table class="stack edit-table" data-list="work-types">
+        <thead><tr><th>Name</th><th>Pay</th><th>Pay per read (₹)</th><th>Paid after (months)</th><th><span hidden>Actions</span></th></tr></thead>
+        <tbody>${m.types.map(t => `<tr data-id="${esc(t.id)}">
+          <td data-label="Name"><input aria-label="Work type name" data-wt="name" value="${esc(t.name)}"></td>
+          <td data-label="Pay"><select aria-label="How it pays" data-wt="fixed"><option value="1"${t.fixed ? ' selected' : ''}>Fixed per read</option><option value="0"${t.fixed ? '' : ' selected'}>Ask each time</option></select></td>
+          <td data-label="Pay per read (₹)">${t.fixed ? `<input aria-label="Pay per read" data-wt="rate" type="number" inputmode="decimal" min="0" step="any" value="${esc(t.rate ?? '')}">` : '<span class="muted small">Asked when adding</span>'}</td>
+          <td data-label="Paid after (months)"><input aria-label="Paid after months" data-wt="delay" type="number" inputmode="numeric" min="0" max="12" step="1" value="${esc(t.delay ?? 1)}"></td>
+          <td class="actions"><button type="button" class="btn danger" data-action="delete-work-type" data-id="${esc(t.id)}" aria-label="Delete ${esc(t.name)}">Delete</button></td>
+        </tr>`).join('')}</tbody>
+      </table>` : '<p class="empty">Add a work type to start, for example one paid a fixed amount per read, or one where you enter the pay each time.</p>'}
+      <p class="small muted" style="margin:0;padding:10px 16px 14px">Changing a rate or delay affects new work only. Work already logged keeps its amount and pay month.</p>
     </div>`;
+  if (!m.types.length) return;
   $('earn-form').addEventListener('submit', handleEarnSubmit);
+  $('earn-type').addEventListener('change', () => { S.earnType = $('earn-type').value; S.earnDate = $('earn-date').value; render(); });
   const preview = () => {
-    const n = Number($('earn-studies').value) || 0;
-    const rate = Number(moon().rate) || 0;
-    $('earn-preview').textContent = rate ? (n ? `${n} × ${inr(rate)} = ${inr(n * rate)}` : `At ${inr(rate)} a study`) : 'Set the rate per study below first.';
+    const t = typeOf($('earn-type').value);
+    const reads = Number($('earn-reads').value) || 0;
+    const when = t.delay == 1 ? 'next month' : `after ${Number(t.delay) || 0} months`;
+    $('earn-preview').textContent = t.fixed
+      ? `${reads ? `${reads} × ${inr(Number(t.rate) || 0)} = ${inr(reads * (Number(t.rate) || 0))}` : `At ${inr(Number(t.rate) || 0)} a read`} · paid ${when}`
+      : `Enter what this work pays · paid ${when}`;
   };
-  $('earn-studies').addEventListener('input', preview);
+  $('earn-reads').addEventListener('input', preview);
 }
 
 function handleEarnSubmit(event) {
   event.preventDefault();
   const error = $('earn-error');
+  const type = typeOf($('earn-type').value);
   const date = $('earn-date').value;
-  const studies = Number($('earn-studies').value);
-  const rate = Number(moon().rate);
+  const reads = Number($('earn-reads').value);
   error.textContent = '';
-  if (!rate) { error.textContent = 'Set the pay per study in Settings below first.'; return; }
   if (!date) { error.textContent = 'Choose the date.'; return; }
-  if (!Number.isInteger(studies) || studies <= 0) { error.textContent = 'Enter the number of studies.'; return; }
-  S.data.moon = { ...moon(), log: [...moon().log, { id: newId('day'), date, studies, rate }] };
+  if (!Number.isInteger(reads) || reads <= 0) { error.textContent = 'Enter the number of reads.'; return; }
+  let amount;
+  if (type.fixed) {
+    if (!Number(type.rate)) { error.textContent = 'Set the pay per read for this type in Work types below.'; return; }
+    amount = reads * Number(type.rate);
+  } else {
+    amount = Number($('earn-amount').value);
+    if (!$('earn-amount').value || !Number.isFinite(amount) || amount <= 0) { error.textContent = 'Enter what this work pays.'; return; }
+  }
+  setMoon({ log: [...moon().log, { id: newId('day'), date, type: type.id, reads, amount, delay: Number(type.delay) || 0 }] });
+  S.earnType = type.id;
+  S.earnDate = date;
   render();
   changed();
-  toast(`Added ${studies} studies, ${inr(studies * rate)}.`);
+  toast(`Added ${inr(amount)} for ${type.name}, paid in ${monthLabel(addMonths(date.slice(0, 7), Number(type.delay) || 0))}.`);
 }
 
 // A list of headings with their monthly total. Selecting a heading shows its entries.
@@ -2547,8 +2587,24 @@ const actions = {
   'add-entry'(id) { openEntryDialog(null, id); },
   async 'delete-day'(id) {
     const day = moon().log.find(item => item.id === id);
-    if (!day || !await ask(`Delete ${day.studies} studies on ${day.date}?`, 'Delete', true)) return;
-    S.data.moon = { ...moon(), log: moon().log.filter(item => item.id !== id) };
+    if (!day || !await ask(`Delete ${inr(Number(day.amount) || 0)} logged on ${day.date}?`, 'Delete', true)) return;
+    setMoon({ log: moon().log.filter(item => item.id !== id) });
+    render();
+    changed();
+  },
+  'add-work-type'() {
+    setMoon({ types: [...moon().types, { id: newId('wt'), name: 'New work type', fixed: true, rate: 0, delay: 1 }] });
+    render();
+    changed();
+    const inputs = document.querySelectorAll('[data-list="work-types"] input[data-wt="name"]');
+    if (inputs.length) { inputs[inputs.length - 1].focus(); inputs[inputs.length - 1].select(); }
+  },
+  async 'delete-work-type'(id) {
+    const used = moon().log.filter(day => day.type === id).length;
+    const type = typeOf(id);
+    const message = used ? `"${type.name}" has ${used} days of work logged. Delete the type and that work too?` : `Delete "${type.name}"?`;
+    if (!await ask(message, 'Delete', true)) return;
+    setMoon({ types: moon().types.filter(t => t.id !== id), log: moon().log.filter(day => day.type !== id) });
     render();
     changed();
   },
@@ -2627,12 +2683,16 @@ function handlePageChange(event) {
   const input = event.target;
   if (input.id === 'set-theme') { setTheme(input.value); return; }
   if (input.id === 'due-pick') { S.duePick = Number(input.value); render(); return; }
-  if (input.id === 'earn-name' || input.id === 'earn-rate' || input.id === 'earn-delay') {
-    const field = { 'earn-name': 'name', 'earn-rate': 'rate', 'earn-delay': 'delay' }[input.id];
-    const value = field === 'name' ? input.value.trim() : field === 'delay' ? Math.min(12, Math.max(0, Math.round(Number(input.value) || 0))) : Math.max(0, Number(input.value) || 0);
-    S.data.moon = { ...moon(), [field]: value };
+  if (input.dataset.wt) {
+    const id = input.closest('tr').dataset.id;
+    const field = input.dataset.wt;
+    const value = field === 'name' ? input.value.trim()
+      : field === 'fixed' ? input.value === '1'
+      : field === 'delay' ? Math.min(12, Math.max(0, Math.round(Number(input.value) || 0)))
+      : Math.max(0, Number(input.value) || 0);
+    setMoon({ types: moon().types.map(t => (t.id === id ? { ...t, [field]: value } : t)) });
     changed();
-    if (field !== 'name') render();
+    if (field !== 'name' && field !== 'rate') render();
     return;
   }
   if (input.dataset.calc) { changed(); return; }
