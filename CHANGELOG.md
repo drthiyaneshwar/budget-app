@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.28.2 - 2026-11-08
+
+- In Coming up, next month and the chosen month both start closed, showing their bills and money needed on one line. Select a month to open it.
+
 ## 1.28.1 - 2026-11-08
 
 - Coming up no longer shows this month as its own row. This month is now a choice in Show another month, along with every month up to a year ahead.
