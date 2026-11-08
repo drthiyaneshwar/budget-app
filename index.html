@@ -227,6 +227,8 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .due-now { display: inline-block; margin-left: 6px; padding: 0 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: .75rem; vertical-align: 1px; }
 .due-bills { list-style: none; margin: 0; padding: 0; max-width: 520px; }
 .due-bills li { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; font-size: .875rem; }
+.due-sub-head { display: flex; justify-content: space-between; gap: 12px; max-width: 520px; padding: 0 10px; color: var(--muted); font-size: .8125rem; font-weight: 700; margin: 2px 0; }
+.due-month .due-sub-head + .due-bills { padding: 0 10px; }
 .due-aside { margin-top: 8px; padding: 8px 10px; max-width: 520px; background: var(--aside-bg); border-radius: var(--radius-sm); }
 .due-aside-head { display: flex; justify-content: space-between; gap: 12px; color: var(--aside); font-size: .8125rem; font-weight: 700; margin-bottom: 2px; }
 .check-list { max-width: none; padding: 4px 12px 8px; }
@@ -534,7 +536,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.17.0';
+const APP_VERSION = '1.17.1';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -1546,7 +1548,8 @@ function billsHtml() {
     const bills = due.filter(e => !e.setAside);
     const aside = due.filter(e => e.setAside);
     return `<li class="due-month${i === 0 ? ' now' : ''}">
-        <div class="due-head"><span>${esc(m.label)}${i === 0 ? ' <span class="due-now">This month</span>' : ''}</span><strong>${bills.length ? inr(sumOf(bills)) : ''}</strong></div>
+        <div class="due-head"><span>${esc(m.label)}${i === 0 ? ' <span class="due-now">This month</span>' : ''}</span><strong>${due.length ? inr(sumOf(due)) : ''}</strong></div>
+        ${bills.length && aside.length ? `<div class="due-sub-head"><span>Will pay</span><strong>${inr(sumOf(bills))}</strong></div>` : ''}
         ${bills.length ? billList(bills) : (aside.length ? '' : '<p class="muted small" style="margin:0">Nothing due.</p>')}
         ${aside.length ? `<div class="due-aside">
           <div class="due-aside-head"><span>Set aside, if needed</span><strong>${inr(sumOf(aside))}</strong></div>

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.17.1 - 2026-11-08
+
+- In Coming up, each month's main total now includes everything due. When a month has both kinds, Will pay and Set aside, if needed each show their own total underneath.
+
 ## 1.17.0 - 2026-11-08
 
 - Coming up splits each month into bills that will be paid and a purple Set aside, if needed part, each with its own total. The month's main total counts only the bills that will be paid.
