@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.33.0 - 2026-11-08
+
+- In Earnings, Work logged and Work types start closed, showing how many entries and types there are. Select a heading to open it.
+- Expected income on Home shows next month and the month after side by side, each with the extra work paid that month.
+
 ## 1.32.0 - 2026-11-08
 
 - Work types can have a TDS percentage. When you add work, the app shows the bill and the amount after TDS.
