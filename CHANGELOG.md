@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.0 - 2026-11-08
+
+- Home is now a dashboard instead of one long page. The top card shows total to transfer, income, left in salary, the buffer check and the income bar.
+- Below it, tiles show Expenses, Savings and investments, Set aside, Transfers sent, money needed next month, Moonlights expected next month and Summary by heading. Select a tile to open its own page, and Back to Home to return.
+- On a phone the tiles sit two to a row, so almost everything fits on one screen.
+
 ## 2.0.1 - 2026-11-08
 
 - The Earnings tab is now called Moonlights.

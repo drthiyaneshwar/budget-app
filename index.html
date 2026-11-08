@@ -307,6 +307,22 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .earn-pay-head { display: flex; justify-content: space-between; gap: 12px; font-weight: 600; max-width: 560px; }
 .earn-pay-part { display: flex; justify-content: space-between; gap: 12px; font-size: .875rem; padding: 2px 0; max-width: 560px; font-variant-numeric: tabular-nums; }
 .earn-days .btn { min-height: 34px; padding: 4px 10px; font-size: .8125rem; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.tile { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 108px; padding: 14px 16px; border: 1px solid var(--line); border-top: 4px solid var(--t, var(--accent)); border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow); text-align: left; cursor: pointer; transition: transform .12s, box-shadow .12s; }
+.tile:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0, 0, 0, .06), 0 8px 20px rgba(0, 0, 0, .06); }
+.tile:focus-visible { outline-offset: 2px; }
+.tile-label { font-size: .8125rem; font-weight: 600; color: var(--t, var(--muted)); }
+.tile-value { font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; margin-top: auto; }
+.tile-sub { font-size: .8125rem; color: var(--muted); }
+.tile-exp { --t: var(--exp); background: var(--exp-bg); }
+.tile-sav { --t: var(--sav); background: var(--sav-bg); }
+.tile-aside { --t: var(--aside); background: var(--aside-bg); }
+.tile-moon { --t: var(--seg-left); }
+.tile-plain { --t: var(--accent); }
+.mini-bar { height: 8px; margin-top: 14px; }
+.btn.hero-more { min-height: 0; margin-top: 10px; padding: 2px 0; text-decoration: none; font-weight: 600; font-size: .875rem; }
+.home-view .groups { grid-template-columns: 1fr; }
+.home-view .group { grid-column: auto; }
 .due-aside { margin-top: 8px; padding: 8px 10px; max-width: 520px; background: var(--aside-bg); border-radius: var(--radius-sm); }
 .due-aside-head { display: flex; justify-content: space-between; gap: 12px; color: var(--aside); font-size: .8125rem; font-weight: 700; margin-bottom: 2px; }
 .heading-head h2 { font-size: 1.5rem; }
@@ -422,6 +438,12 @@ dialog h3 { margin-bottom: 12px; }
   .group-head { padding-left: 12px; }
   .h-entries { margin-left: 12px; }
   .due-month { padding: 12px; grid-template-columns: 1fr; }
+  .tiles { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tile { min-height: 96px; padding: 12px; }
+  .tile-value { font-size: 1.15rem; }
+  .hero-dash .hero-value { font-size: 2rem; }
+  .hero-dash .hero-stats { margin-top: 10px; padding-top: 10px; }
+  .tile-label { font-size: .78rem; }
   .month-days th, .month-days td { padding: 9px 8px; font-size: .8125rem; }
   .month-days th:first-child, .month-days td:first-child { padding-left: 14px; }
   .month-days th:last-child, .month-days td:last-child { padding-right: 14px; }
@@ -622,7 +644,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.0.1';
+const APP_VERSION = '2.1.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -755,6 +777,7 @@ const S = {
   setup: null
 };
 let saveTimer = null;
+let nextMonthNeeded = null; // set by billsHtml(), shown on a Home tile
 
 /* ---------- Small helpers ---------- */
 
@@ -1336,6 +1359,7 @@ function enterApp() {
 
 function go(page) {
   S.page = page;
+  if (page === 'home') S.homeView = null; // the Home tab always opens the dashboard
   render();
   window.scrollTo(0, 0);
 }
@@ -1843,11 +1867,11 @@ function renderHome() {
       ${isOpen ? detail : ''}
     </section>`;
   };
-  const groupsHtml = s.bySection.length ? `<div class="groups">
-      ${group('Expenses', 'expense', expenseEntries, 'No expense entries yet.')}
-      ${group('Savings and investments', 'saving', savingEntries, 'None yet. On the Entries page, edit a heading and set its kind to Savings and investments.')}
-      ${group('Set aside', 'aside', asideEntries, 'Nothing set aside yet. When you add or edit an entry, tick Set aside.')}
-    </div>` : '';
+  const groupBox = {
+    expenses: () => group('Expenses', 'expense', expenseEntries, 'No expense entries yet.'),
+    savings: () => group('Savings and investments', 'saving', savingEntries, 'None yet. On the Entries page, edit a heading and set its kind to Savings and investments.'),
+    aside: () => group('Set aside', 'aside', asideEntries, 'Nothing set aside yet. When you add or edit an entry, tick Set aside.')
+  };
 
   // Per-heading rows for the summary table, from a list of entries
   const rowsFor = list => S.data.sections.map(section => {
@@ -1886,10 +1910,50 @@ function renderHome() {
       </table></div>` : '<p class="empty" id="summary-headings">No headings yet. Add one on the Entries page.</p>') : ''}
     </div>`;
 
+  const transferCard = `<div class="card">
+      <div class="card-head"><h3>Transfer to each account this month</h3><span class="subtotals">${sentCount ? `${sentCount} of ${payCount} sent · ` : ''}Tick each one once sent</span></div>
+      ${payRows ? `<ul class="pay-list">${payRows}</ul>
+        <div class="pay-total"><span>Total to transfer<span class="pay-role">Includes ${inr(s.totals.yearlyPerMonth)} a month for yearly bills (${inr(s.totals.yearlyRouted)} a year)</span></span><span class="pay-amount">${money(s.totalTransfer)}</span></div>`
+        : `<p class="empty">${s.accounts.length ? 'No transfers yet. Add entries on the Entries page.' : 'No accounts yet. Add one in Settings, under Accounts.'}</p>`}
+    </div>`;
+  nextMonthNeeded = null;
+  const comingHtml = billsHtml();
+  const back = '<button type="button" class="btn link back-link" data-action="home-view" data-id="">‹ Back to Home</button>';
+  const warningsHtml = warnings.map(text => `<div class="notice" role="alert">${esc(text)}</div>`).join('');
+
+  // A tile's own page
+  const views = {
+    expenses: ['Expenses', () => groupBox.expenses()],
+    savings: ['Savings and investments', () => groupBox.savings()],
+    aside: ['Set aside', () => groupBox.aside()],
+    transfers: ['Transfers this month', () => transferCard],
+    coming: ['Coming up', () => comingHtml],
+    income: ['Income', () => `${expectedIncomeHtml(s.income) || ''}${splitCard}`],
+    summary: ['Summary by heading', () => summaryHtml]
+  };
+  if (S.homeView && views[S.homeView]) {
+    const [title, body] = views[S.homeView];
+    $('page').innerHTML = `${back}
+      <div class="page-head"><div><h2>${title}</h2><div class="page-sub">${esc(monthName)}</div></div></div>
+      ${warningsHtml}
+      <div class="home-view">${body()}</div>`;
+    return;
+  }
+
+  // Dashboard: the main figures, then a tile for each part
+  const next = upcomingMonths(2)[1];
+  const nextShort = MONTHS[next.month - 1].slice(0, 3);
+  const extra = moon().types.length ? earningsPaidIn(next.key) : null;
+  const tile = (view, cls, label, value, sub) => `<button type="button" class="tile ${cls}" data-action="home-view" data-id="${view}">
+      <span class="tile-label">${label}</span><span class="tile-value">${value}</span><span class="tile-sub">${sub}</span>
+    </button>`;
+  const miniBar = splitTotal > 0 ? `<div class="split-bar mini-bar" role="img" aria-label="${splitParts.map(part => `${part.label} ${share(part)} percent`).join(', ')}">
+      ${splitParts.filter(part => part.amount > 0).map(part => `<div class="split-seg" style="flex:${part.amount} 1 0;background:${part.color}"></div>`).join('')}
+    </div>` : '';
   $('page').innerHTML = `
     <div class="page-head"><div><h2>This month</h2><div class="page-sub">${esc(monthName)}</div></div></div>
-    ${warnings.map(text => `<div class="notice" role="alert">${esc(text)}</div>`).join('')}
-    <section class="hero" aria-labelledby="hero-label">
+    ${warningsHtml}
+    <section class="hero hero-dash" aria-labelledby="hero-label">
       <div class="hero-top">
         <div>
           <div class="hero-label" id="hero-label">Total to transfer</div>
@@ -1901,18 +1965,20 @@ function renderHome() {
         <div><dt>Income</dt><dd>${money(s.income)}</dd></div>
         <div><dt>Left in salary</dt><dd>${money(s.left)}</dd></div>
       </dl>
+      ${miniBar}
+      ${miniBar ? `<button type="button" class="btn link hero-more" data-action="home-view" data-id="income">Where your income goes ›</button>` : ''}
     </section>
-    ${expectedIncomeHtml(s.income)}
-    ${splitCard}
-    ${groupsHtml}
-    <div class="card">
-      <div class="card-head"><h3>Transfer to each account this month</h3><span class="subtotals">${sentCount ? `${sentCount} of ${payCount} sent · ` : ''}Tick each one once sent</span></div>
-      ${payRows ? `<ul class="pay-list">${payRows}</ul>
-        <div class="pay-total"><span>Total to transfer<span class="pay-role">Includes ${inr(s.totals.yearlyPerMonth)} a month for yearly bills (${inr(s.totals.yearlyRouted)} a year)</span></span><span class="pay-amount">${money(s.totalTransfer)}</span></div>`
-        : `<p class="empty">${s.accounts.length ? 'No transfers yet. Add entries on the Entries page.' : 'No accounts yet. Add one in Settings, under Accounts.'}</p>`}
-    </div>
-    ${billsHtml()}
-    ${summaryHtml}`;
+    <div class="tiles">
+      ${tile('expenses', 'tile-exp', 'Expenses', inr(monthlyOf(expenseEntries)), 'a month')}
+      ${tile('savings', 'tile-sav', 'Savings and investments', inr(monthlyOf(savingEntries)), 'a month')}
+      ${asideEntries.length ? tile('aside', 'tile-aside', 'Set aside', inr(monthlyOf(asideEntries)), 'a month · may not spend') : ''}
+      ${tile('transfers', 'tile-plain', 'Transfers', payCount ? `${sentCount} of ${payCount}` : '–', payCount ? (sentCount === payCount ? 'all sent ✓' : 'sent this month') : 'no accounts yet')}
+      ${tile('coming', 'tile-plain', 'Next month', nextMonthNeeded === null ? '–' : inr(nextMonthNeeded), nextMonthNeeded === null ? 'add due months to plan' : `needed in ${nextShort}`)}
+      ${extra === null ? '' : `<button type="button" class="tile tile-moon" data-action="go-page" data-id="earnings">
+          <span class="tile-label">Moonlights</span><span class="tile-value">${inr(extra)}</span><span class="tile-sub">expected in ${nextShort}</span>
+        </button>`}
+      ${tile('summary', 'tile-plain', 'Summary by heading', String(s.bySection.length), s.bySection.length === 1 ? 'heading' : 'headings')}
+    </div>`;
 }
 
 // Home: bills coming up in the next 3 months, and whether each account will have enough
@@ -1982,6 +2048,7 @@ function billsHtml() {
     const bills = due.filter(e => !e.setAside);
     const aside = due.filter(e => e.setAside);
     const needed = neededHtml(due);
+    if (i === 1) nextMonthNeeded = needed.total;
     const id = `due-${m.month}`;
     const isOpen = openByDefault !== S.open.has(id);
     const label = `${esc(m.label)}${i === 0 ? ' <span class="due-now">This month</span>' : i === 1 ? ' <span class="due-now">Next month</span>' : ''}`;
@@ -2805,6 +2872,17 @@ const actions = {
   },
   backup: downloadBackup,
   'open-calculator'() { go('calculator'); },
+  'home-view'(view) {
+    S.homeView = view || null;
+    // A tile's page shows its contents open
+    if (view === 'expenses') S.open.add('group-expense');
+    if (view === 'savings') S.open.add('group-saving');
+    if (view === 'aside') S.open.add('group-aside');
+    if (view === 'summary') S.open.add('summary-headings');
+    render();
+    window.scrollTo(0, 0);
+  },
+  'go-page'(page) { go(page); },
   'open-earn-type'(id) { S.earnView = id; go('earn-days'); },
   'open-earn-month'(key) { S.earnMonth = key; go('earn-month'); },
   'close-earn-month'() { go('earn-days'); },
