@@ -296,7 +296,9 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .type-row:hover { background: var(--card-raised); }
 .type-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .type-name { font-weight: 600; }
-.earn-date-table tfoot td { font-weight: 600; background: var(--card-raised); }
+.type-row .num { flex: none; font-variant-numeric: tabular-nums; }
+.month-days tfoot td { font-weight: 600; background: var(--card-raised); }
+.month-days td, .month-days th { white-space: nowrap; }
 .earn-amt { display: flex; flex-direction: column; align-items: flex-end; }
 .earn-day { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .earn-pay { list-style: none; margin: 0; padding: 0; }
@@ -420,7 +422,9 @@ dialog h3 { margin-bottom: 12px; }
   .group-head { padding-left: 12px; }
   .h-entries { margin-left: 12px; }
   .due-month { padding: 12px; grid-template-columns: 1fr; }
-  .earn-date-table tfoot { display: none; } /* the month heading already shows the totals */
+  .month-days th, .month-days td { padding: 9px 8px; font-size: .8125rem; }
+  .month-days th:first-child, .month-days td:first-child { padding-left: 14px; }
+  .month-days th:last-child, .month-days td:last-child { padding-right: 14px; }
   .expect { grid-template-columns: 1fr; }
   .expect-month + .expect-month { border-left: 0; border-top: 1px solid var(--line); }
   .earn-days li { flex-wrap: wrap; gap: 4px 12px; }
@@ -618,7 +622,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.36.1';
+const APP_VERSION = '1.37.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -1358,11 +1362,11 @@ function render() {
   syncIncome();
   document.querySelectorAll('.tab').forEach(tab => {
     // The calculator page belongs to Settings, and a heading's page to Entries
-    const current = { calculator: 'settings', heading: 'entries', 'earn-days': 'earnings' }[S.page] || S.page;
+    const current = { calculator: 'settings', heading: 'entries', 'earn-days': 'earnings', 'earn-month': 'earnings' }[S.page] || S.page;
     if (tab.dataset.page === current) tab.setAttribute('aria-current', 'page');
     else tab.removeAttribute('aria-current');
   });
-  ({ home: renderHome, earnings: renderEarnings, 'earn-days': renderEarnDays, entries: renderEntries, heading: renderHeading, settings: renderSettings, calculator: renderCalculator })[S.page]();
+  ({ home: renderHome, earnings: renderEarnings, 'earn-days': renderEarnDays, 'earn-month': renderEarnMonth, entries: renderEntries, heading: renderHeading, settings: renderSettings, calculator: renderCalculator })[S.page]();
   updateFooter();
 }
 
@@ -1541,7 +1545,7 @@ function renderEarnings() {
   const payOpen = S.open.has('earn-pay');
   const thisMonth = m.log.filter(day => day.date.startsWith(monthKey(today)));
   const thisMonthAmount = thisMonth.reduce((t, day) => t + netOf(day), 0);
-  const recent = [...m.log].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 40);
+  const recent = m.log.map((day, at) => ({ day, at })).sort((a, b) => b.day.date.localeCompare(a.day.date) || b.at - a.at).map(x => x.day).slice(0, 40);
   // Work logged and Work types start closed; select the heading to open them
   const logOpen = S.open.has('earn-log');
   const typesOpen = S.open.has('earn-types') || !m.types.length;
@@ -1633,42 +1637,65 @@ function renderEarnings() {
   preview();
 }
 
-// Earnings: one work type's days in a table, grouped by month, newest first
+// Earnings: one work type's months, newest first; select a month to see its days
 function renderEarnDays() {
   const m = moon();
   const type = typeOf(S.earnView);
   if (!type) { go('earnings'); return; }
-  const dayLabel = date => new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', weekday: 'short' }).format(new Date(date + 'T00:00:00'));
   const months = new Map();
-  for (const day of m.log.filter(d => d.type === type.id).sort((a, b) => b.date.localeCompare(a.date))) {
+  for (const day of m.log.filter(d => d.type === type.id)) {
     const key = day.date.slice(0, 7);
-    if (!months.has(key)) months.set(key, []);
-    months.get(key).push(day);
+    const row = months.get(key) || { key, reads: 0, pay: 0, paid: new Set() };
+    row.reads += Number(day.reads) || 0;
+    row.pay += netOf(day);
+    row.paid.add(payMonth(day));
+    months.set(key, row);
   }
-  const anyTds = m.log.some(day => day.type === type.id && Number(day.tds));
-  const sum = (list, f) => list.reduce((t, day) => t + f(day), 0);
+  const rows = [...months.values()].sort((a, b) => b.key.localeCompare(a.key));
   $('page').innerHTML = `
     <button type="button" class="btn link back-link" data-action="close-earn-days">‹ Back to Earnings</button>
-    <div class="page-head"><div><h2>${esc(type.name)}</h2><div class="page-sub">${type.fixed ? `${inr(Number(type.rate) || 0)} a read` : 'Pay entered each time'} · paid ${type.delay == 1 ? 'next month' : `after ${Number(type.delay) || 0} months`}${Number(type.tds) ? ` · ${Number(type.tds)}% TDS` : ''} · newest first</div></div></div>
-    ${months.size ? [...months.entries()].map(([key, days]) => `<div class="card">
-      <div class="card-head"><h3>${esc(monthLabel(key))}</h3><span class="subtotals">${sum(days, d => Number(d.reads) || 0)} reads · ${inr(sum(days, netOf))}${anyTds ? ' after TDS' : ''}</span></div>
-      <table class="stack earn-date-table">
-        <thead><tr><th>Date</th><th class="num">Reads</th>${anyTds ? '<th class="num">Bill</th><th class="num">TDS</th>' : ''}<th class="num">Pay</th><th>Paid in</th></tr></thead>
+    <div class="page-head"><div><h2>${esc(type.name)}</h2><div class="page-sub">${type.fixed ? `${inr(Number(type.rate) || 0)} a read` : 'Pay entered each time'} · paid ${type.delay == 1 ? 'next month' : `after ${Number(type.delay) || 0} months`}${Number(type.tds) ? ` · ${Number(type.tds)}% TDS` : ''}</div></div></div>
+    <div class="card">
+      ${rows.length ? `<ul class="type-list">${rows.map(row => `<li><button class="type-row" data-action="open-earn-month" data-id="${row.key}">
+          <span class="type-main"><span class="type-name">${esc(monthLabel(row.key))}</span>
+            <span class="muted small">${row.reads === 1 ? '1 read' : `${row.reads} reads`} · paid in ${[...row.paid].sort().map(monthLabel).map(esc).join(', ')}</span></span>
+          <strong class="num">${inr(row.pay)}</strong>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+        </button></li>`).join('')}</ul>` : `<p class="empty">No ${esc(type.name)} work logged yet. Add work on the Earnings page.</p>`}
+    </div>`;
+  window.scrollTo(0, 0);
+}
+
+// Earnings: one work type, one month: date, reads and pay
+function renderEarnMonth() {
+  const type = typeOf(S.earnView);
+  if (!type) { go('earnings'); return; }
+  const key = S.earnMonth;
+  const days = moon().log.map((day, at) => ({ day, at })).filter(x => x.day.type === type.id && x.day.date.startsWith(key))
+    .sort((a, b) => b.day.date.localeCompare(a.day.date) || b.at - a.at).map(x => x.day);
+  if (!days.length) { go('earn-days'); return; }
+  const anyTds = days.some(day => Number(day.tds));
+  const sum = f => days.reduce((t, day) => t + f(day), 0);
+  $('page').innerHTML = `
+    <button type="button" class="btn link back-link" data-action="close-earn-month">‹ Back to ${esc(type.name)}</button>
+    <div class="page-head"><div><h2>${esc(monthLabel(key))}</h2><div class="page-sub">${esc(type.name)} · paid in ${esc(monthLabel(payMonth(days[0])))} · latest first</div></div></div>
+    <div class="card">
+      <table class="month-days">
+        <thead><tr><th>Date</th><th class="num">Reads</th>${anyTds ? '<th class="num">Bill</th><th class="num">TDS</th>' : ''}<th class="num">Pay</th></tr></thead>
         <tbody>${days.map(day => `<tr>
-          <td class="title">${Number(day.date.slice(8, 10))}</td>
-          <td class="num" data-label="Reads">${Number(day.reads) || 0}</td>
-          ${anyTds ? `<td class="num" data-label="Bill">${inr(Number(day.amount) || 0)}</td><td class="num" data-label="TDS">${Number(day.tds) ? `${inr((Number(day.amount) || 0) - netOf(day))} (${Number(day.tds)}%)` : '–'}</td>` : ''}
-          <td class="num" data-label="Pay"><strong>${inr(netOf(day))}</strong></td>
-          <td data-label="Paid in">${esc(monthLabel(payMonth(day)))}</td>
+          <td>${Number(day.date.slice(8, 10))}</td>
+          <td class="num">${Number(day.reads) || 0}</td>
+          ${anyTds ? `<td class="num">${inr(Number(day.amount) || 0)}</td><td class="num">${Number(day.tds) ? inr((Number(day.amount) || 0) - netOf(day)) : '–'}</td>` : ''}
+          <td class="num"><strong>${inr(netOf(day))}</strong></td>
         </tr>`).join('')}</tbody>
         <tfoot><tr>
           <td>Total</td>
-          <td class="num">${sum(days, d => Number(d.reads) || 0)}</td>
-          ${anyTds ? `<td class="num">${inr(sum(days, d => Number(d.amount) || 0))}</td><td class="num">${inr(sum(days, d => (Number(d.amount) || 0) - netOf(d)))}</td>` : ''}
-          <td class="num"><strong>${inr(sum(days, netOf))}</strong></td><td class="hide-phone"></td>
+          <td class="num">${sum(d => Number(d.reads) || 0)}</td>
+          ${anyTds ? `<td class="num">${inr(sum(d => Number(d.amount) || 0))}</td><td class="num">${inr(sum(d => (Number(d.amount) || 0) - netOf(d)))}</td>` : ''}
+          <td class="num"><strong>${inr(sum(netOf))}</strong></td>
         </tr></tfoot>
       </table>
-    </div>`).join('') : `<div class="card"><p class="empty">No ${esc(type.name)} work logged yet. Add work on the Earnings page.</p></div>`}`;
+    </div>`;
   window.scrollTo(0, 0);
 }
 
@@ -2779,6 +2806,8 @@ const actions = {
   backup: downloadBackup,
   'open-calculator'() { go('calculator'); },
   'open-earn-type'(id) { S.earnView = id; go('earn-days'); },
+  'open-earn-month'(key) { S.earnMonth = key; go('earn-month'); },
+  'close-earn-month'() { go('earn-days'); },
   'close-earn-days'() { go('earnings'); },
   'open-heading'(id) { S.heading = id; go('heading'); },
   'close-heading'() { go('entries'); },

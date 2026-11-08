@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.37.0 - 2026-11-08
+
+- A work type's page lists its months, newest first, with reads, pay and the month it is paid. Select a month to open its own page with date, reads and pay (and bill and TDS where TDS applies), latest first.
+- Work logged now puts the entry added last at the top, even when several entries share a date.
+- The month table fits on phones.
+
 ## 1.36.1 - 2026-11-08
 
 - On a work type's page, the Date column shows only the day of the month, since each table is already headed by its month.
