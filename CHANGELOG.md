@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.26.0 - 2026-11-08
+
+- On a heading's page, the Per month column is gone. Yearly and quarterly entries show their monthly share in small text under How often instead. Monthly entries show only their amount.
+
 ## 1.25.0 - 2026-11-08
 
 - Money needed this month shows Savings and investments on its own green line. It is still included in the total. Monthly payments is now Monthly expenses.
