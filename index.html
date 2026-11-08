@@ -558,7 +558,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.28.0';
+const APP_VERSION = '1.28.1';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -1579,10 +1579,11 @@ function billsHtml() {
   };
 
   // Each month: bills that will be paid, then set-aside costs that may happen, and the money needed
-  // Next month first and open; this month below it, closed; then any month picked from the list
+  // Next month first and open; then this month or any later month, picked from the list
   const year = upcomingMonths(12);
-  const pick = Math.min(11, Math.max(2, S.duePick || 2));
-  const shown = [[year[1], 1, true], [year[0], 0, false], [year[pick], pick, true]];
+  const pickable = [0, ...year.keys()].filter((k, n, all) => k !== 1 && all.indexOf(k) === n);
+  const pick = pickable.includes(S.duePick) ? S.duePick : 2;
+  const shown = [[year[1], 1, true], [year[pick], pick, true]];
   const monthRow = ([m, i, openByDefault]) => {
     const due = dated.filter(e => dueMonths(e).includes(m.month));
     const bills = due.filter(e => !e.setAside);
@@ -1616,11 +1617,11 @@ function billsHtml() {
         ${needed.html}
       </li>`;
   };
-  const soon = shown.slice(0, 2).map(monthRow).join('') + `<li class="due-pick-row">
+  const soon = monthRow(shown[0]) + `<li class="due-pick-row">
       <label class="due-pick">Show another month
-        <select id="due-pick">${year.slice(2).map((m, k) => `<option value="${k + 2}"${k + 2 === pick ? ' selected' : ''}>${esc(m.label)}</option>`).join('')}</select>
+        <select id="due-pick">${pickable.map(k => `<option value="${k}"${k === pick ? ' selected' : ''}>${esc(year[k].label)}${k === 0 ? ' (this month)' : ''}</option>`).join('')}</select>
       </label>
-    </li>` + monthRow(shown[2]);
+    </li>` + monthRow(shown[1]);
   const undatedNote = undated.length
     ? `<div class="notice due-note">${undated.length === 1 ? '1 yearly or quarterly entry has' : `${undated.length} yearly or quarterly entries have`} no due month yet: ${undated.map(e => esc(e.item)).join(', ')}. Add one with Edit on the Entries page.</div>`
     : '';
