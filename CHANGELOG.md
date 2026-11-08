@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.11.0 - 2026-11-08
+
+- Fixed: after unlocking, changes could stay on the device and not reach GitHub until the app was closed and opened again.
+- Changes made on two devices are now combined instead of one device's save replacing the other's. If both devices change the same item, the device saving last wins for that item only.
+- A save that gets no answer stops after 20 seconds, and the app keeps trying again every 30 seconds while changes are waiting.
+- When you come back to the app, it loads changes made on your other devices.
+- The app saves straight away when you leave it.
+
 ## 1.10.0 - 2026-11-08
 
 - The Entries page shows only the headings at first, each with its monthly and yearly total, number of entries and kind.

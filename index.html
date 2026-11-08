@@ -472,7 +472,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.10.0';
+const APP_VERSION = '1.11.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -480,6 +480,9 @@ const SAVE_DELAY_MS = 400;
 const LS_CONFIG = 'budgetConfig';
 const LS_CACHE = 'budgetCache';
 const LS_PENDING = 'budgetPending';
+const LS_BASE = 'budgetBase'; // the GitHub copy this device last saw, encrypted
+const GITHUB_TIMEOUT_MS = 20000;
+const RETRY_MS = 30000;
 const LS_THEME = 'budgetTheme';
 const ACCOUNT_TYPES = ['Income', 'Spending', 'Sinking', 'Savings'];
 const FREQUENCIES = ['Monthly', 'Quarterly', 'Yearly'];
@@ -657,6 +660,7 @@ async function forgetDevice() {
   localStorage.removeItem(LS_CONFIG);
   localStorage.removeItem(LS_CACHE);
   localStorage.removeItem(LS_PENDING);
+  localStorage.removeItem(LS_BASE);
   await forgetRememberedKey();
   location.reload();
 }
@@ -729,14 +733,25 @@ class GitHubError extends Error {
 
 async function github(path, options = {}) {
   const { owner, repo } = S.config;
-  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}${path}`, {
-    ...options,
-    cache: 'no-store',
-    headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${S.token}` }
-  });
-  if (res.status === 404 && options.allow404) return null;
-  if (!res.ok) throw new GitHubError(res.status);
-  return res.json();
+  // Give up after a while so a weak connection never leaves a save hanging
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), GITHUB_TIMEOUT_MS);
+  try {
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}${path}`, {
+      ...options,
+      cache: 'no-store',
+      signal: controller.signal,
+      headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${S.token}` }
+    });
+    if (res.status === 404 && options.allow404) return null;
+    if (!res.ok) throw new GitHubError(res.status);
+    return await res.json();
+  } catch (error) {
+    if (error.name === 'AbortError') throw new TypeError('GitHub took too long to answer.');
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function getFile() {
@@ -754,16 +769,101 @@ async function putFile(text) {
       ...(S.sha ? { sha: S.sha } : {})
     })
   });
-  let result;
-  try {
-    result = await send();
-  } catch (error) {
-    if (!(error instanceof GitHubError) || (error.status !== 409 && error.status !== 422)) throw error;
-    const current = await getFile();
-    S.sha = current ? current.sha : null;
-    result = await send();
-  }
+  const result = await send();
   S.sha = result.content.sha;
+}
+
+// GitHub refuses a save when its copy changed since this device last read it
+const isConflict = error => error instanceof GitHubError && (error.status === 409 || error.status === 422);
+
+/* ---------- Combining changes from two devices ----------
+   base is the GitHub copy both sides started from. For each account, heading,
+   entry and setting: a change on this device wins, otherwise the other
+   device's version is kept. Additions from both sides are kept, and a
+   deletion applies unless the other side changed that item. */
+
+function mergeData(base, local, remote) {
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const pick = (b, l, r) => (same(l, b) ? r : l);
+  const mergeList = (baseList = [], localList = [], remoteList = []) => {
+    const byId = list => new Map(list.map(item => [item.id, item]));
+    const B = byId(baseList), L = byId(localList), R = byId(remoteList);
+    const ids = [...new Set([...L.keys(), ...R.keys()])];
+    const out = [];
+    for (const id of ids) {
+      const b = B.get(id), l = L.get(id), r = R.get(id);
+      if (l && r) out.push(pick(b, l, r));
+      else if (l) { if (!b || !same(l, b)) out.push(l); }   // missing remotely: new here, or changed here
+      else if (r) { if (!b || !same(r, b)) out.push(r); }   // missing here: new there, or changed there
+    }
+    return out;
+  };
+  const baseSettings = (base && base.settings) || {};
+  const settings = {};
+  for (const name of new Set([...Object.keys(local.settings || {}), ...Object.keys(remote.settings || {})])) {
+    settings[name] = pick(baseSettings[name], (local.settings || {})[name], (remote.settings || {})[name]);
+  }
+  return {
+    ...remote,
+    ...local,
+    settings,
+    accounts: mergeList(base && base.accounts, local.accounts, remote.accounts),
+    sections: mergeList(base && base.sections, local.sections, remote.sections),
+    entries: mergeList(base && base.entries, local.entries, remote.entries)
+  };
+}
+
+function setBase(text) {
+  try { localStorage.setItem(LS_BASE, text); } catch {}
+}
+
+async function readBase() {
+  try {
+    const envelope = JSON.parse(localStorage.getItem(LS_BASE));
+    if (!envelope || envelope.salt !== S.config.salt) return null;
+    return JSON.parse(await decryptText(S.key, envelope));
+  } catch {
+    return null;
+  }
+}
+
+// Reads the newer GitHub copy and combines it with the changes on this device.
+async function mergeWithGitHub() {
+  const file = await getFile();
+  if (!file) { S.sha = null; return; }
+  const envelope = JSON.parse(file.text);
+  if (envelope.salt !== S.config.salt) throw new Error('The passcode was changed on another device. Lock the app and unlock it with the new passcode.');
+  const remote = JSON.parse(await decryptText(S.key, envelope));
+  const base = (await readBase()) || { settings: {}, accounts: [], sections: [], entries: [] };
+  S.data = mergeData(base, S.data, remote);
+  S.sha = file.sha;
+  setBase(file.text);
+  stage(await packData());
+  redrawIfIdle();
+}
+
+// Redraws the page unless a dialog is open, so typing is never interrupted.
+function redrawIfIdle() {
+  if (S.data && !document.querySelector('dialog[open]') && !$('screen-app').hidden) render();
+}
+
+// Picks up changes made on another device, when this one has nothing waiting to sync.
+async function refreshFromGitHub() {
+  if (!S.key || !navigator.onLine || isPending() || saveTimer || S.syncing) return;
+  try {
+    const file = await getFile();
+    if (!file || file.sha === S.sha || isPending() || saveTimer || S.syncing) return;
+    const envelope = JSON.parse(file.text);
+    if (envelope.salt !== S.config.salt) return; // the next unlock asks for the new passcode
+    S.data = JSON.parse(await decryptText(S.key, envelope));
+    S.sha = file.sha;
+    S.latest = file.text;
+    localStorage.setItem(LS_CACHE, file.text);
+    setBase(file.text);
+    redrawIfIdle();
+  } catch {
+    // Offline or GitHub busy: keep showing the copy on this device
+  }
 }
 
 /* ---------- Saving ---------- */
@@ -786,20 +886,33 @@ function stage(text) {
   setPending(true);
 }
 
-function syncNow() {
+function syncNow(quiet = false) {
   if (!navigator.onLine) return Promise.resolve();
   if (S.syncing) return S.syncing;
+  if (!isPending() || !S.key) { updateFooter(); return Promise.resolve(); }
   S.syncing = (async () => {
+    // Wait a tick so S.syncing is set before the finally block clears it.
+    // Without this, a sync with nothing to send left the app stuck as "busy".
+    await null;
     try {
+      let merges = 0;
       while (isPending() && S.key) {
         const sent = S.latest;
-        await putFile(sent);
+        try {
+          await putFile(sent);
+        } catch (error) {
+          if (!isConflict(error) || merges >= 3) throw error;
+          merges += 1;
+          await mergeWithGitHub(); // another device saved first: combine, then try again
+          continue;
+        }
+        setBase(sent);
         if (sent === S.latest) setPending(false);
       }
       S.syncError = '';
     } catch (error) {
-      S.syncError = error instanceof GitHubError ? error.message : 'Could not reach GitHub. Check your connection.';
-      toast(error instanceof GitHubError ? error.message : 'Could not reach GitHub. Your change is saved on this device and will sync later.', true);
+      S.syncError = error instanceof GitHubError || !(error instanceof TypeError) ? error.message : 'Could not reach GitHub. Check your connection.';
+      if (!quiet) toast(error instanceof TypeError ? 'Could not reach GitHub. Your change is saved on this device and will sync later.' : error.message, true);
     } finally {
       S.syncing = null;
       updateFooter();
@@ -884,6 +997,7 @@ async function handleSetup(event) {
       S.sha = file.sha;
       S.latest = file.text;
       localStorage.setItem(LS_CACHE, file.text);
+      setBase(file.text);
       saveConfig();
       enterApp();
     } else {
@@ -973,6 +1087,7 @@ async function loadBudget() {
   if (file) {
     S.data = JSON.parse(await openFile(file));
     localStorage.setItem(LS_CACHE, S.latest);
+    setBase(file.text);
   } else if (cached) {
     await useCache();
     setPending(true);
@@ -1341,8 +1456,9 @@ function handleEntrySubmit(event) {
     section: $('e-section').value, item, amount, frequency: $('e-frequency').value,
     account: $('e-account').value, notes: $('e-notes').value.trim()
   };
-  if (S.editing) Object.assign(S.data.entries.find(e => e.id === S.editing), values);
-  else S.data.entries.push({ id: newId('ent'), ...values });
+  const existing = S.editing && S.data.entries.find(e => e.id === S.editing);
+  if (existing) Object.assign(existing, values);
+  else S.data.entries.push({ id: S.editing || newId('ent'), ...values });
   S.open.add(`sec-${values.section}`); // keep the heading with the entry open
   $('dlg-entry').close();
   render();
@@ -1363,7 +1479,9 @@ function handleHeadingSubmit(event) {
   const name = $('h-name').value.trim();
   if (!name) { $('heading-error').textContent = 'Enter the heading name.'; return; }
   const kind = $('h-kind').value;
-  if (S.editingSection) Object.assign(S.data.sections.find(s => s.id === S.editingSection), { name, kind });
+  const existingSection = S.editingSection && S.data.sections.find(s => s.id === S.editingSection);
+  if (existingSection) Object.assign(existingSection, { name, kind });
+  else if (S.editingSection) S.data.sections.push({ id: S.editingSection, name, kind });
   else {
     const id = newId('sec');
     S.data.sections.push({ id, name, kind });
@@ -1679,12 +1797,19 @@ function start() {
   $('page').addEventListener('change', handlePageChange);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden' && saveTimer) saveNow();
-    if (document.visibilityState === 'visible' && isPending() && S.key) syncNow();
+    if (document.visibilityState === 'visible' && S.key) {
+      if (isPending()) syncNow(true);
+      else refreshFromGitHub();
+    }
   });
+  window.addEventListener('pagehide', () => { if (saveTimer) saveNow(); });
+  setInterval(() => {
+    if (S.key && isPending() && !saveTimer && !S.syncing && navigator.onLine) syncNow(true);
+  }, RETRY_MS);
   $('footer').addEventListener('click', event => {
     if (event.target.closest('[data-action="sync-now"]')) syncNow();
   });
-  window.addEventListener('online', () => { updateFooter(); syncNow(); });
+  window.addEventListener('online', () => { updateFooter(); syncNow(true); });
   window.addEventListener('offline', updateFooter);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 

@@ -48,7 +48,7 @@ Settings has a Theme choice: Same as device, Normal (light) or Dark. It is saved
 
 The app works without a connection once it has been opened online. An encrypted copy of your budget stays on the device, and changes made offline sync when the connection returns. The footer shows when changes are not yet synced.
 
-If two devices change the budget without syncing, the last one to save wins. The earlier version stays in the private repository's commit history.
+If two devices change the budget at the same time, the app combines the changes. For each account, heading, entry and setting, a change on one device is kept unless the other device changed the same item, in which case the device that saves last wins for that item. Every version stays in the private repository's commit history.
 
 ## How the numbers work
 
