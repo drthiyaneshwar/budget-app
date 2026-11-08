@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.27.0 - 2026-11-08
+
+- In Coming up, next month opens by default. This month and the month after start closed, showing a one-line summary of bills and money needed. Select any month to open or close it.
+
 ## 1.26.1 - 2026-11-08
 
 - Removed the How much each account should hold card from Home.
