@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.19.0 - 2026-11-08
+
+- New Calculator tab: compares keeping money in a savings account with slab interest (A), part in the savings account and the rest in a liquid fund (B), and an FD with monthly payouts (C). Results update as you type.
+- Your amounts are saved in your encrypted budget, so they sync between devices and are never stored in the app's code. Rates and slab limits can be changed.
+
 ## 1.18.0 - 2026-11-08
 
 - New Export section in Settings. Choose what to export (everything, overview, entries, summary by heading, accounts, income sources, or bills for the next 12 months) and a format.

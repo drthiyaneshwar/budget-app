@@ -238,6 +238,10 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .check-bills { display: block; color: var(--muted); font-size: .8125rem; }
 .check-table tr.is-now td { background: var(--accent-soft); }
 .chip.neutral { background: var(--accent-soft); color: var(--accent); }
+.calc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0 14px; }
+.calc-grid label { margin-bottom: 12px; }
+.calc-table tr.key td { font-weight: 650; background: var(--accent-soft); }
+.calc-table tr.muted td { color: var(--muted); }
 .sec-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 2px; }
 .sec-title .kind-tag { margin-left: 0; vertical-align: 0; }
 .sec-actions { padding: 12px 16px; border-bottom: 1px solid var(--line); }
@@ -447,6 +451,7 @@ dialog h3 { margin-bottom: 12px; }
       <nav class="tabs" aria-label="Pages">
         <button class="tab" data-page="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg><span>Home</span></button>
         <button class="tab" data-page="entries"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg><span>Entries</span></button>
+        <button class="tab" data-page="calculator"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"/></svg><span>Calculator</span></button>
         <button class="tab" data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg><span>Settings</span></button>
       </nav>
     </div>
@@ -536,7 +541,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.18.0';
+const APP_VERSION = '1.19.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -1260,7 +1265,7 @@ function render() {
     if (tab.dataset.page === S.page) tab.setAttribute('aria-current', 'page');
     else tab.removeAttribute('aria-current');
   });
-  ({ home: renderHome, entries: renderEntries, settings: renderSettings })[S.page]();
+  ({ home: renderHome, entries: renderEntries, calculator: renderCalculator, settings: renderSettings })[S.page]();
   updateFooter();
 }
 
@@ -1595,6 +1600,142 @@ function billsHtml() {
       <div class="card-head"><h3>How much each account should hold</h3><span class="subtotals">At the start of each month</span></div>
       <ul class="h-tree check-list">${targets}</ul>
     </div>`;
+}
+
+/* ---------- Calculator: savings account vs liquid fund vs FD ----------
+   Your amounts are saved in the encrypted budget (S.data.calc), never in this file.
+   Defaults here are only public rates and general settings. */
+
+const CALC_FIELDS = [
+  { group: 'Common', fields: [
+    { id: 'lump', label: 'Starting amount, A and B (₹)' },
+    { id: 'topup', label: 'Monthly top-up (₹)' },
+    { id: 'months', label: 'Months', value: '12' },
+    { id: 'gross', label: 'Liquid fund gross return (%)', value: '6.3' },
+    { id: 'er', label: 'Liquid fund expense ratio (%)', value: '0.18' }
+  ] },
+  { group: 'Savings account interest', fields: [
+    { id: 'accName', label: 'Account name', type: 'text', value: 'Savings account' },
+    { id: 'r1', label: 'Rate up to first limit (%)', value: '2.5' },
+    { id: 'b1', label: 'First limit (₹)', value: '300000' },
+    { id: 'r2', label: 'Rate up to second limit (%)', value: '7' },
+    { id: 'b2', label: 'Second limit (₹)', value: '2500000' },
+    { id: 'r3', label: 'Rate above second limit (%)', value: '6' }
+  ] },
+  { group: 'Option B', fields: [
+    { id: 'floor', label: 'Kept in the savings account (₹)' }
+  ] },
+  { group: 'Option C: FD', fields: [
+    { id: 'fdAmt', label: 'FD amount (₹)' },
+    { id: 'fdRate', label: 'FD rate (%)', value: '7.25' },
+    { id: 'fdDays', label: 'FD tenure (days)', value: '500' },
+    { id: 'payTo', label: 'Monthly payouts go to', type: 'select', value: 'liquid', options: [['liquid', 'Liquid fund'], ['other', 'Other account']] },
+    { id: 'payName', label: 'Other account name', type: 'text', value: 'Other account' },
+    { id: 'payRate', label: 'Other account rate (% a year, after tax)', value: '6.5' }
+  ] }
+];
+
+const calcValue = field => {
+  const saved = S.data.calc && S.data.calc[field.id];
+  return saved !== undefined ? saved : (field.value ?? '');
+};
+
+function calcResults() {
+  const values = {};
+  CALC_FIELDS.forEach(group => group.fields.forEach(field => { values[field.id] = calcValue(field); }));
+  const num = id => { const v = parseFloat(values[id]); return isNaN(v) ? 0 : v; };
+  const r1 = num('r1') / 100, r2 = num('r2') / 100, r3 = num('r3') / 100, b1 = num('b1'), b2 = num('b2');
+  // Monthly interest on a savings account with slab rates
+  const accInt = bal => (Math.min(bal, b1) * r1 + Math.max(0, Math.min(bal, b2) - b1) * r2 + Math.max(0, bal - b2) * r3) / 12;
+  const lump = num('lump'), topup = num('topup'), N = Math.max(1, Math.round(num('months'))), floor = num('floor');
+  const net = (num('gross') - num('er')) / 100 / 12;
+  const fdAmt = num('fdAmt'), fdM = num('fdRate') / 100 / 12, matM = num('fdDays') / 365 * 12;
+  const payRate = num('payRate') / 100 / 12;
+  const toLiquid = values.payTo !== 'other';
+  const accName = values.accName || 'Savings account';
+  const payName = values.payName || 'Other account';
+
+  // A: everything in the savings account
+  let a = lump, sA = 0;
+  for (let m = 1; m <= N; m++) { a += topup; a += accInt(a); sA += a; }
+
+  // B: a fixed amount in the savings account, the rest and the top-ups in the liquid fund
+  let acc = Math.min(lump, floor), liq = lump - acc, sB = 0;
+  for (let m = 1; m <= N; m++) { liq += topup; liq += liq * net; acc += accInt(acc); sB += acc + liq; }
+
+  // C: FD with monthly payouts; top-ups go to the liquid fund
+  const runC = liqDest => {
+    let fd = fdAmt, lc = 0, pb = 0, matured = false, sum = 0;
+    for (let m = 1; m <= N; m++) {
+      lc += topup;
+      if (!matured) {
+        const pay = fd * fdM;
+        if (liqDest) lc += pay; else pb += pay;
+        if (m >= matM) { if (liqDest) lc += fd; else pb += fd; fd = 0; matured = true; }
+      }
+      lc += lc * net;
+      pb += pb * payRate;
+      sum += fd + lc + pb;
+    }
+    return { final: fd + lc + pb, avg: sum / N };
+  };
+  const cSel = runC(toLiquid), cLiq = runC(true);
+  const contribAB = lump + topup * N, contribC = fdAmt + topup * N;
+  const row = (label, final, avg, contrib, cls = '') => {
+    const interest = final - contrib;
+    return { label, final, interest, perMonth: interest / N, yearly: avg > 0 ? (interest / avg) * (12 / N) * 100 : 0, cls };
+  };
+  const rows = [
+    row(`A: all in ${accName}`, a, sA / N, contribAB),
+    row(`B: ${inr(Math.min(lump, floor))} in ${accName} + liquid fund`, acc + liq, sB / N, contribAB),
+    row(`C: FD, payouts to ${toLiquid ? 'liquid fund' : payName}`, cSel.final, cSel.avg, contribC, 'key')
+  ];
+  if (!toLiquid) rows.push(row('C if payouts went to the liquid fund', cLiq.final, cLiq.avg, contribC, 'muted'));
+  return { rows, empty: !lump && !fdAmt && !topup };
+}
+
+function calcRowsHtml() {
+  const { rows, empty } = calcResults();
+  if (empty) return '<p class="empty">Enter your amounts above to compare the options.</p>';
+  const money = n => (n < 0 ? '−' : '') + inr(Math.abs(n));
+  return `<table class="stack calc-table">
+      <thead><tr><th>Option</th><th class="num">Final value</th><th class="num">Interest</th><th class="num">Average a month</th><th class="num">Interest a year</th></tr></thead>
+      <tbody>${rows.map(row => `<tr class="${row.cls}">
+        <td class="title">${esc(row.label)}</td>
+        <td class="num" data-label="Final value">${money(row.final)}</td>
+        <td class="num" data-label="Interest">${money(row.interest)}</td>
+        <td class="num" data-label="Average a month">${money(row.perMonth)}</td>
+        <td class="num" data-label="Interest a year">${row.yearly.toFixed(2)}%</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+function renderCalculator() {
+  const fieldHtml = field => {
+    const value = calcValue(field);
+    const input = field.type === 'select'
+      ? `<select id="calc-${field.id}" data-calc="${field.id}">${field.options.map(([v, label]) => `<option value="${v}"${value === v ? ' selected' : ''}>${label}</option>`).join('')}</select>`
+      : `<input id="calc-${field.id}" data-calc="${field.id}" type="${field.type || 'number'}"${field.type ? '' : ' inputmode="decimal" step="any"'} value="${esc(value)}">`;
+    return `<label>${field.label}${input}</label>`;
+  };
+  $('page').innerHTML = `
+    <div class="page-head"><div><h2>Calculator</h2><div class="page-sub">Savings account vs liquid fund vs FD</div></div></div>
+    <div class="card">
+      <div class="card-head"><h3>Results</h3><span class="subtotals">Before tax</span></div>
+      <div id="calc-results">${calcRowsHtml()}</div>
+    </div>
+    ${CALC_FIELDS.map(group => `<div class="card">
+      <div class="card-head"><h3>${group.group}</h3></div>
+      <div class="card-body calc-grid">${group.fields.map(fieldHtml).join('')}</div>
+    </div>`).join('')}
+    <p class="small muted">Interest a year = interest ÷ average balance, for a full year. The liquid fund return is an assumption, not a guarantee. Your amounts are saved in your encrypted budget.</p>`;
+  // Update results as you type; save when a box is left
+  $('page').querySelectorAll('[data-calc]').forEach(el => {
+    el.addEventListener('input', () => {
+      S.data.calc = { ...(S.data.calc || {}), [el.dataset.calc]: el.value };
+      $('calc-results').innerHTML = calcRowsHtml();
+    });
+  });
 }
 
 function renderEntries() {
@@ -2169,6 +2310,7 @@ function handlePageClick(event) {
 function handlePageChange(event) {
   const input = event.target;
   if (input.id === 'set-theme') { setTheme(input.value); return; }
+  if (input.dataset.calc) { changed(); return; }
   if (input.id === 'set-income' || input.id === 'set-buffer') {
     S.data.settings[input.id === 'set-income' ? 'income' : 'buffer'] = Math.max(0, Number(input.value) || 0);
     changed();
