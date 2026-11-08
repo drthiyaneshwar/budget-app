@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.8.0 - 2026-11-08
+
+- Home has two summary boxes side by side: Expenses on the left in red, and Savings and investments on the right in green. Each shows its monthly and yearly total. Select a box to see its headings and every entry under them.
+- Summary by heading is now closed until you select it. When open, it groups headings under Expenses and Savings and investments, with a subtotal for each and the overall total.
+- A heading goes under Savings and investments when its kind is Savings and investments. This kind was called Savings before, and you can change it with Edit heading on the Entries page.
+- The Entries page shows each heading's kind next to its name.
+
 ## 1.7.0 - 2026-11-08
 
 - New setting: Open without passcode on this device. When it is on, the app opens straight to your budget on that device.
