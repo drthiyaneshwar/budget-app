@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.34.0 - 2026-11-08
+
+- Income sources in Settings each have a TDS % box. Monthly income then counts what reaches your account after TDS, and the total also shows the amount before TDS.
+
 ## 1.33.0 - 2026-11-08
 
 - In Earnings, Work logged and Work types start closed, showing how many entries and types there are. Select a heading to open it.
