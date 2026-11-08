@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.5 - 2026-11-08
+
+- Expected income uses a smaller font, so each month's sum fits on one line.
+
 ## 2.1.4 - 2026-11-08
 
 - Large screens: Where your income goes sits beside Total to transfer in the top row. Below, the left column has Expected income, the three boxes and Coming up; the right column has Transfers and Summary by heading. Spacing is tighter so Home fits on one screen on most computers.
