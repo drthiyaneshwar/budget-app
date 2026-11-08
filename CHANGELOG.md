@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.23.0 - 2026-11-08
+
+- Coming up groups each month's bills by account. Under each account it shows what is saved each month for those bills, and how much more than that is paid from the account's savings that month, or that this month's saving covers it.
+
 ## 1.22.0 - 2026-11-08
 
 - On the Entries page, each heading opens on its own page with its entries and the Add entry, Edit heading and Delete heading buttons. Back to Entries returns to the list.
