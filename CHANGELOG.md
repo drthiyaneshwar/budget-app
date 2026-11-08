@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.15.0 - 2026-11-08
+
+- Yearly entries can have a due month, and quarterly entries a first due month. Set it when adding or editing an entry.
+- Home has a Coming up card listing the yearly and quarterly bills due in the next 3 months.
+- Home has a Will there be enough? card. For each account with dated bills, it follows the balance over the next 12 months and warns about any month that would run short.
+- Each account in Settings has an optional Balance today, which the check starts from.
+
 ## 1.14.0 - 2026-11-08
 
 - Income can be split into sources in Settings, each with a name and a monthly amount. Monthly income is their total.

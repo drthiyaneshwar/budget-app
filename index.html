@@ -220,6 +220,20 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .income-table .actions .btn { min-height: 38px; padding: 5px 10px; font-size: .8125rem; }
 .income-total { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 10px 12px; margin-bottom: 16px; background: var(--card-raised); border-radius: var(--radius-sm); font-variant-numeric: tabular-nums; }
 .income-total strong { font-size: 1.1rem; }
+.due-list { list-style: none; margin: 0; padding: 0; }
+.due-month { padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.due-month:last-child { border-bottom: 0; }
+.due-head { display: flex; justify-content: space-between; gap: 12px; font-weight: 600; margin-bottom: 4px; max-width: 520px; }
+.due-now { display: inline-block; margin-left: 6px; padding: 0 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: .75rem; vertical-align: 1px; }
+.due-bills { list-style: none; margin: 0; padding: 0; max-width: 520px; }
+.due-bills li { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; font-size: .875rem; }
+.check-list { max-width: none; padding: 4px 12px 8px; }
+.check-row .chip { flex: none; font-size: .75rem; }
+.check-detail { padding: 0 4px 12px 28px; }
+.check-table th, .check-table td { padding: 7px 8px; font-size: .875rem; vertical-align: top; }
+.check-bills { display: block; color: var(--muted); font-size: .8125rem; }
+.check-short { display: block; color: var(--bad); font-weight: 600; font-size: .8125rem; }
+.check-table tr.is-short td { background: var(--bad-bg); }
 .sec-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 2px; }
 .sec-title .kind-tag { margin-left: 0; vertical-align: 0; }
 .sec-actions { padding: 12px 16px; border-bottom: 1px solid var(--line); }
@@ -323,6 +337,11 @@ dialog h3 { margin-bottom: 12px; }
   .group.aside { grid-column: 1 / -1; }
   .group-head { padding-left: 12px; }
   .h-entries { margin-left: 12px; }
+  .check-row { flex-wrap: wrap; }
+  .check-row .h-name { flex: 1 1 calc(100% - 30px); }
+  .check-row .chip { margin-left: 24px; }
+  .check-detail { padding-left: 4px; }
+  .due-month { padding: 12px; }
   .income-table thead { display: none; }
   .income-table tr { display: grid; grid-template-columns: 1fr auto; gap: 6px 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
   .income-table td { display: block; width: auto !important; padding: 0; }
@@ -440,6 +459,10 @@ dialog h3 { margin-bottom: 12px; }
     <label>How often
       <select id="e-frequency"><option>Monthly</option><option>Quarterly</option><option>Yearly</option></select>
     </label>
+    <label id="e-due-wrap" hidden><span id="e-due-label">Due month</span>
+      <span class="hint" id="e-due-hint"></span>
+      <select id="e-due"></select>
+    </label>
     <label>Heading <select id="e-section"></select></label>
     <label>Account <select id="e-account"></select></label>
     <label class="check">
@@ -509,7 +532,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.14.0';
+const APP_VERSION = '1.15.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -522,6 +545,7 @@ const GITHUB_TIMEOUT_MS = 20000;
 const RETRY_MS = 30000;
 const LS_THEME = 'budgetTheme';
 const ACCOUNT_TYPES = ['Income', 'Spending', 'Sinking', 'Savings'];
+const MONTHS = Array.from({ length: 12 }, (_, i) => new Intl.DateTimeFormat('en-IN', { month: 'long' }).format(new Date(2000, i, 1)));
 const FREQUENCIES = ['Monthly', 'Quarterly', 'Yearly'];
 
 // CORE-START: calculations and encryption, used by the app and by the Node test.
@@ -1267,6 +1291,59 @@ function updateFooter() {
   footer.append(note);
 }
 
+/* ---------- Bills with a due month ---------- */
+
+// Months (1-12) an entry is paid in, from its due month
+function dueMonths(entry) {
+  const first = Number(entry.dueMonth);
+  if (!first || first < 1 || first > 12) return [];
+  if (entry.frequency === 'Yearly') return [first];
+  if (entry.frequency === 'Quarterly') return [0, 3, 6, 9].map(step => ((first - 1 + step) % 12) + 1);
+  return [];
+}
+
+const dueText = entry => {
+  const months = dueMonths(entry);
+  if (!months.length) return '';
+  return entry.frequency === 'Quarterly' ? months.map(m => MONTHS[m - 1].slice(0, 3)).join(', ') : MONTHS[months[0] - 1];
+};
+
+// This month and the ones after it
+function upcomingMonths(count) {
+  const now = new Date();
+  return Array.from({ length: count }, (_, i) => {
+    const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    return {
+      month: date.getMonth() + 1,
+      label: new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(date),
+      short_label: new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'numeric' }).format(date)
+    };
+  });
+}
+
+/* For one account, follows its balance over the next 12 months. The monthly
+   share of its dated bills goes in every month (this month's share is taken
+   as already in the balance), and each bill comes out in its due month.
+   If a bill is short, the shortfall is noted and assumed to be topped up. */
+function billsCheck(account) {
+  const dated = S.data.entries.filter(e => e.account === account.id && dueMonths(e).length);
+  if (!dated.length) return null;
+  const monthlyIn = dated.reduce((total, e) => total + monthlyEquivalent(e), 0);
+  const hasBalance = account.balance !== undefined && account.balance !== null && account.balance !== '';
+  let balance = hasBalance ? Number(account.balance) || 0 : monthlyIn;
+  const months = [];
+  upcomingMonths(12).forEach((m, i) => {
+    if (i > 0) balance += monthlyIn;
+    const bills = dated.filter(e => dueMonths(e).includes(m.month));
+    if (!bills.length) return;
+    const pay = bills.reduce((total, e) => total + (Number(e.amount) || 0), 0);
+    const short = Math.max(0, pay - balance);
+    months.push({ ...m, bills, pay, ready: balance, short });
+    balance = Math.max(0, balance - pay);
+  });
+  return { account, hasBalance, monthlyIn, months, short: months.filter(m => m.short > 0) };
+}
+
 // A list of headings with their monthly total. Selecting a heading shows its entries.
 // `key` keeps each list's open headings separate (for example per account).
 function headingTree(entries, key) {
@@ -1290,7 +1367,7 @@ function headingTree(entries, key) {
         <span class="h-amt">${inr(monthly)}</span>
       </button>
       ${isOpen ? `<ul class="h-entries" id="${esc(id)}">${list.map(e => `<li>
-          <span class="h-item">${esc(e.item)} <span class="muted">(${esc(e.frequency)})</span>${e.setAside ? '<span class="aside-tag">Set aside</span>' : ''}</span>
+          <span class="h-item">${esc(e.item)} <span class="muted">(${esc(e.frequency)}${dueText(e) ? `, ${esc(dueText(e))}` : ''})</span>${e.setAside ? '<span class="aside-tag">Set aside</span>' : ''}</span>
           <span class="h-amt">${inr(monthlyEquivalent(e))}</span>
         </li>`).join('')}</ul>` : ''}
     </li>`;
@@ -1444,7 +1521,63 @@ function renderHome() {
         <div class="pay-total"><span>Total to transfer<span class="pay-role">Includes ${inr(s.totals.yearlyPerMonth)} a month for yearly bills (${inr(s.totals.yearlyRouted)} a year)</span></span><span class="pay-amount">${money(s.totalTransfer)}</span></div>`
         : `<p class="empty">${s.accounts.length ? 'No transfers yet. Add entries on the Entries page.' : 'No accounts yet. Add one in Settings, under Accounts.'}</p>`}
     </div>
+    ${billsHtml()}
     ${summaryHtml}`;
+}
+
+// Home: bills coming up in the next 3 months, and whether each account will have enough
+function billsHtml() {
+  const dated = S.data.entries.filter(e => dueMonths(e).length && S.data.accounts.some(a => a.id === e.account));
+  const accountName = id => (S.data.accounts.find(a => a.id === id) || {}).name || '';
+  if (!dated.length) {
+    return `<div class="card"><div class="card-head"><h3>Coming up</h3></div>
+      <p class="empty">Add a due month to your yearly and quarterly entries to see when each one is paid. Edit an entry on the Entries page to add it.</p></div>`;
+  }
+  const soon = upcomingMonths(3).map((m, i) => {
+    const bills = dated.filter(e => dueMonths(e).includes(m.month));
+    const total = bills.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    return `<li class="due-month${i === 0 ? ' now' : ''}">
+        <div class="due-head"><span>${esc(m.label)}${i === 0 ? ' <span class="due-now">This month</span>' : ''}</span><strong>${bills.length ? inr(total) : ''}</strong></div>
+        ${bills.length ? `<ul class="due-bills">${bills.map(e => `<li><span>${esc(e.item)} <span class="muted">from ${esc(accountName(e.account))}</span></span><span class="num">${inr(Number(e.amount) || 0)}</span></li>`).join('')}</ul>`
+          : '<p class="muted small" style="margin:0">Nothing due.</p>'}
+      </li>`;
+  }).join('');
+
+  const checks = S.data.accounts.map(billsCheck).filter(Boolean).map(check => {
+    const id = `check-${check.account.id}`;
+    const isOpen = S.open.has(id);
+    const status = check.short.length
+      ? `<span class="chip bad">${inr(check.short[0].short)} short in ${esc(check.short[0].short_label)}</span>`
+      : '<span class="chip good">Enough for every bill</span>';
+    return `<li>
+      <button class="h-row check-row" data-action="toggle-group" data-id="${esc(id)}" aria-expanded="${isOpen}" aria-controls="${esc(id)}">
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+        <span class="h-name">${esc(check.account.name)}</span>
+        ${status}
+      </button>
+      ${isOpen ? `<div class="check-detail" id="${esc(id)}">
+        <p class="small muted">${check.hasBalance ? `Starts from the balance you entered, ${inr(Number(check.account.balance) || 0)}, and adds ${inr(check.monthlyIn)} each month.` : `No balance entered, so it assumes the account holds only this month's ${inr(check.monthlyIn)}. Add the real balance in Settings, under Accounts.`}</p>
+        <table class="check-table">
+          <thead><tr><th>Month</th><th class="num">To pay</th><th class="num">In account</th></tr></thead>
+          <tbody>${check.months.map(m => `<tr class="${m.short ? 'is-short' : ''}">
+            <td>${esc(m.label)}<span class="check-bills">${m.bills.map(e => esc(e.item)).join(', ')}</span></td>
+            <td class="num">${inr(m.pay)}</td>
+            <td class="num">${inr(m.ready)}${m.short ? `<span class="check-short">Short ${inr(m.short)}</span>` : ''}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+        ${check.short.length ? `<p class="small" style="margin:10px 0 0">To be safe, add ${inr(check.short[0].short)} to this account before ${esc(check.short[0].label)}.</p>` : ''}
+      </div>` : ''}
+    </li>`;
+  }).join('');
+
+  return `<div class="card">
+      <div class="card-head"><h3>Coming up</h3><span class="subtotals">Yearly and quarterly bills, next 3 months</span></div>
+      <ul class="due-list">${soon}</ul>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Will there be enough?</h3><span class="subtotals">Each account over the next 12 months</span></div>
+      <ul class="h-tree check-list">${checks}</ul>
+    </div>`;
 }
 
 function renderEntries() {
@@ -1458,7 +1591,7 @@ function renderEntries() {
     const rows = entries.map(e => `<tr>
         <td class="title">${esc(e.item)}${e.setAside ? '<span class="aside-tag">Set aside</span>' : ''}</td>
         <td class="num" data-label="Amount">${inr(e.amount)}</td>
-        <td data-label="How often">${esc(e.frequency)}</td>
+        <td data-label="How often">${esc(e.frequency)}${dueText(e) ? `<span class="muted small"> · ${esc(dueText(e))}</span>` : ''}</td>
         <td class="num" data-label="Per month">${inr(monthlyEquivalent(e))}</td>
         <td data-label="Account">${esc(accountName(e.account))}</td>
         <td class="notes">${esc(e.notes)}</td>
@@ -1504,12 +1637,25 @@ function openEntryDialog(entry, sectionId) {
   $('e-item').value = entry ? entry.item : '';
   $('e-amount').value = entry ? entry.amount : '';
   $('e-frequency').value = entry ? entry.frequency : 'Monthly';
+  $('e-due').innerHTML = ['<option value="">Not set</option>', ...MONTHS.map((name, i) => `<option value="${i + 1}">${name}</option>`)].join('');
+  $('e-due').value = entry && entry.dueMonth ? String(entry.dueMonth) : '';
+  updateDueField();
   $('e-section').innerHTML = options(S.data.sections, entry ? entry.section : sectionId);
   $('e-account').innerHTML = options(S.data.accounts, entry ? entry.account : undefined);
   $('e-notes').value = entry ? entry.notes : '';
   $('e-aside').checked = Boolean(entry && entry.setAside);
   $('entry-error').textContent = '';
   $('dlg-entry').showModal();
+}
+
+// The due month only applies to yearly and quarterly entries
+function updateDueField() {
+  const frequency = $('e-frequency').value;
+  $('e-due-wrap').hidden = frequency === 'Monthly';
+  $('e-due-label').textContent = frequency === 'Quarterly' ? 'First due month' : 'Due month';
+  $('e-due-hint').textContent = frequency === 'Quarterly'
+    ? 'The month of the first payment in the year. It then repeats every 3 months.'
+    : 'The month this is paid each year.';
 }
 
 function handleEntrySubmit(event) {
@@ -1520,6 +1666,7 @@ function handleEntrySubmit(event) {
   if ($('e-amount').value === '' || !Number.isFinite(amount) || amount < 0) { $('entry-error').textContent = 'Enter an amount of 0 or more.'; return; }
   const values = {
     section: $('e-section').value, item, amount, frequency: $('e-frequency').value,
+    dueMonth: $('e-frequency').value !== 'Monthly' && $('e-due').value ? Number($('e-due').value) : null,
     account: $('e-account').value, notes: $('e-notes').value.trim(), setAside: $('e-aside').checked
   };
   const existing = S.editing && S.data.entries.find(e => e.id === S.editing);
@@ -1567,6 +1714,7 @@ function accountsCard() {
       <td data-label="Role"><input aria-label="Role" data-field="role" value="${esc(a.role)}"></td>
       <td data-label="Type"><select aria-label="Type" data-field="type">${options(ACCOUNT_TYPES, a.type)}</select></td>
       <td class="num" data-label="Per month">${inr(transfers.get(a.id))}</td>
+      <td data-label="Balance today"><input aria-label="Balance today in ${esc(a.name)}" data-field="balance" type="number" inputmode="decimal" step="any" placeholder="Optional" value="${esc(a.balance ?? '')}">${a.balanceDate ? `<span class="hint">Updated ${esc(new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(new Date(a.balanceDate)))}</span>` : ''}</td>
       <td class="actions"><button class="btn danger" data-action="delete-account" data-id="${esc(a.id)}" aria-label="Delete ${esc(a.name)}">Delete</button></td>
     </tr>`).join('');
   const count = S.data.accounts.length;
@@ -1578,7 +1726,7 @@ function accountsCard() {
       ${isOpen ? `<div id="settings-accounts">
         <div class="btn-row sec-actions"><button class="btn primary" data-action="add-account">Add account</button></div>
         ${rows ? `<table class="stack edit-table" data-list="accounts">
-          <thead><tr><th>Name</th><th>Role</th><th>Type</th><th class="num">Per month</th><th><span hidden>Actions</span></th></tr></thead>
+          <thead><tr><th>Name</th><th>Role</th><th>Type</th><th class="num">Per month</th><th>Balance today (₹)</th><th><span hidden>Actions</span></th></tr></thead>
           <tbody>${rows}</tbody>
         </table>` : '<p class="empty">No accounts yet.</p>'}
       </div>` : ''}
@@ -1870,7 +2018,10 @@ function handlePageChange(event) {
   const table = input.closest('[data-list]');
   if (!table || !input.dataset.field) return;
   const row = S.data[table.dataset.list].find(item => item.id === input.closest('tr').dataset.id);
-  if (table.dataset.list === 'incomeSources' && input.dataset.field === 'amount') {
+  if (table.dataset.list === 'accounts' && input.dataset.field === 'balance') {
+    if (input.value === '') { delete row.balance; delete row.balanceDate; }
+    else { row.balance = Number(input.value) || 0; row.balanceDate = new Date().toISOString().slice(0, 10); }
+  } else if (table.dataset.list === 'incomeSources' && input.dataset.field === 'amount') {
     row.amount = Math.max(0, Number(input.value) || 0);
     syncIncome();
     $('income-total').textContent = inr(S.data.settings.income);
@@ -1889,6 +2040,7 @@ function start() {
   $('unlock-form').addEventListener('submit', handleUnlock);
   $('unlock-forget').addEventListener('click', confirmForget);
   $('entry-form').addEventListener('submit', handleEntrySubmit);
+  $('e-frequency').addEventListener('change', updateDueField);
   $('heading-form').addEventListener('submit', handleHeadingSubmit);
   $('remember-form').addEventListener('submit', handleRememberSubmit);
   $('confirm-ok').addEventListener('click', () => $('dlg-confirm').close('ok'));
