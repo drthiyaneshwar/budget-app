@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.16.0 - 2026-11-08
+
+- The Will there be enough? card is replaced by How much each account should hold. For each account with dated bills, it shows the amount the account should have at the start of each of the next 12 months, and the bills paid that month.
+- If you enter the balance today in Settings, it shows whether the account is on track, or how much to add once to catch up.
+
 ## 1.15.0 - 2026-11-08
 
 - Yearly entries can have a due month, and quarterly entries a first due month. Set it when adding or editing an entry.

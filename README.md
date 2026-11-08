@@ -40,7 +40,7 @@ The file is plain JSON:
 
 The data can also have `"incomeSources": [{ "id": "inc_1", "name": "", "amount": 0 }]`. When it has any, monthly income is their total.
 
-Yearly and quarterly entries can have `"dueMonth"` (1 to 12; for quarterly, the first payment in the year). Accounts can have `"balance"` and `"balanceDate"`, used only by the Will there be enough? check on Home.
+Yearly and quarterly entries can have `"dueMonth"` (1 to 12; for quarterly, the first payment in the year). Accounts can have `"balance"` and `"balanceDate"`, used only by the How much each account should hold card on Home. That card shows, for the start of each month, the share of every dated bill saved since it was last paid.
 
 An entry can also have `"setAside": true` for money kept ready for a cost that may not happen. It is still counted in the transfer, and Home shows it separately.
 
