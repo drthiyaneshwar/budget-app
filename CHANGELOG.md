@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.22.0 - 2026-11-08
+
+- On the Entries page, each heading opens on its own page with its entries and the Add entry, Edit heading and Delete heading buttons. Back to Entries returns to the list.
+- A new heading opens its page straight away, and adding an entry keeps you on the heading's page.
+
 ## 1.21.0 - 2026-11-08
 
 - The Calculator opens on its own page from Settings instead of opening inside the Settings page. Back to Settings returns you.
