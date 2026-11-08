@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.29.0 - 2026-11-08
+
+- Transfer to each account this month: tick each account once you have sent the money. It shows how many are sent, and the ticks start fresh each month.
+- Coming up: tick a bill once it is paid. Paid bills are crossed out for that month.
+- Entries page: a search box finds entries by name, heading, account or notes.
+- New How often choice, One time, for an expense you expect in a particular month. It shows in Coming up for that month, with its own line in Money needed, and is not part of the monthly totals.
+
 ## 1.28.3 - 2026-11-08
 
 - Export no longer asks what to export. It always exports the whole budget: overview, income, accounts, headings, entries and the bills due over the next 12 months.

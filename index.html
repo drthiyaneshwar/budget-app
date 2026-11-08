@@ -251,6 +251,28 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .due-pick-row { padding: 12px 16px 4px; border-bottom: 0; }
 .due-pick { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0; font-size: .875rem; }
 .due-pick select { width: auto; min-width: 180px; margin: 0; }
+.tick { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 26px; height: 26px; padding: 0; border: 2px solid var(--field-line); border-radius: 50%; background: var(--card); color: transparent; cursor: pointer; }
+.tick svg { width: 14px; height: 14px; }
+.tick[aria-pressed="true"] { background: var(--good); border-color: var(--good); color: #fff; }
+.pay-line { display: flex; align-items: center; }
+.pay-line .pay-tick { margin-left: 16px; }
+.pay-line .pay-row { flex: 1; min-width: 0; padding-left: 12px; }
+.is-sent .pay-name, .is-sent .pay-amount { color: var(--muted); }
+.due-bills li { align-items: center; }
+.due-bills .tick { width: 22px; height: 22px; margin-right: 2px; }
+.due-bills .tick svg { width: 12px; height: 12px; }
+.due-item { flex: 1; min-width: 0; }
+.due-bills li.is-paid .due-item, .due-bills li.is-paid .num { color: var(--muted); text-decoration: line-through; }
+.once-tag { display: inline-block; padding: 0 7px; border-radius: 999px; background: var(--warn-bg); color: var(--warn); font-size: .7rem; font-weight: 600; vertical-align: 1px; }
+.search-box { display: block; margin-bottom: 16px; }
+.search-box input { margin: 0; }
+.search-list { list-style: none; margin: 0; padding: 0; }
+.search-list li { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.search-list li:last-child { border-bottom: 0; }
+.search-main { flex: 1; min-width: 0; }
+.search-item { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.search-list .btn { min-height: 38px; padding: 5px 12px; font-size: .875rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .due-aside { margin-top: 8px; padding: 8px 10px; max-width: 520px; background: var(--aside-bg); border-radius: var(--radius-sm); }
 .due-aside-head { display: flex; justify-content: space-between; gap: 12px; color: var(--aside); font-size: .8125rem; font-weight: 700; margin-bottom: 2px; }
 .heading-head h2 { font-size: 1.5rem; }
@@ -483,11 +505,12 @@ dialog h3 { margin-bottom: 12px; }
     <label>Item <input id="e-item" required></label>
     <label>Amount (₹) <input id="e-amount" type="number" inputmode="decimal" min="0" step="any" required></label>
     <label>How often
-      <select id="e-frequency"><option>Monthly</option><option>Quarterly</option><option>Yearly</option></select>
+      <select id="e-frequency"><option>Monthly</option><option>Quarterly</option><option>Yearly</option><option>One time</option></select>
     </label>
     <label id="e-due-wrap" hidden><span id="e-due-label">Due month</span>
       <span class="hint" id="e-due-hint"></span>
       <select id="e-due"></select>
+      <select id="e-due-date" hidden></select>
     </label>
     <label>Heading <select id="e-section"></select></label>
     <label>Account <select id="e-account"></select></label>
@@ -558,7 +581,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '1.28.3';
+const APP_VERSION = '1.29.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -578,6 +601,7 @@ const FREQUENCIES = ['Monthly', 'Quarterly', 'Yearly'];
 
 function monthlyEquivalent(entry) {
   const amount = Number(entry.amount) || 0;
+  if (entry.frequency === 'One time') return 0; // paid once in its month; planned in Coming up
   if (entry.frequency === 'Quarterly') return amount / 3;
   if (entry.frequency === 'Yearly') return amount / 12;
   return amount;
@@ -1320,6 +1344,27 @@ function updateFooter() {
   footer.append(note);
 }
 
+/* ---------- Ticks: transfers sent and bills paid, per month ----------
+   S.data.done = { 'YYYY-MM': { sent: [account ids], paid: [entry ids] } }.
+   Months older than three months are dropped. */
+
+const TICK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>';
+
+function isDone(key, kind, id) {
+  const month = S.data.done && S.data.done[key];
+  return Boolean(month && (month[kind] || []).includes(id));
+}
+
+function toggleDone(key, kind, id) {
+  const done = S.data.done = { ...(S.data.done || {}) };
+  const month = done[key] = { sent: [], paid: [], ...(done[key] || {}) };
+  month[kind] = month[kind].includes(id) ? month[kind].filter(x => x !== id) : [...month[kind], id];
+  const oldest = monthKey(new Date(new Date().getFullYear(), new Date().getMonth() - 3, 1));
+  for (const old of Object.keys(done)) if (old < oldest) delete done[old];
+  render();
+  changed();
+}
+
 /* ---------- Bills with a due month ---------- */
 
 // Months (1-12) an entry is paid in, from its due month
@@ -1331,7 +1376,20 @@ function dueMonths(entry) {
   return [];
 }
 
+// 'YYYY-MM' for a date, and a readable label for such a key
+const monthKey = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+const monthLabel = key => {
+  const [year, month] = key.split('-').map(Number);
+  return new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1));
+};
+const isOnce = entry => entry.frequency === 'One time';
+// Has a month it is paid in: a dated yearly or quarterly bill, or a one-time expense
+const hasDue = entry => (isOnce(entry) ? Boolean(entry.dueDate) : dueMonths(entry).length > 0);
+// Is it paid in this month (from upcomingMonths)?
+const isDueIn = (entry, m) => (isOnce(entry) ? entry.dueDate === m.key : dueMonths(entry).includes(m.month));
+
 const dueText = entry => {
+  if (isOnce(entry)) return entry.dueDate ? monthLabel(entry.dueDate) : '';
   const months = dueMonths(entry);
   if (!months.length) return '';
   return entry.frequency === 'Quarterly' ? months.map(m => MONTHS[m - 1].slice(0, 3)).join(', ') : MONTHS[months[0] - 1];
@@ -1343,6 +1401,7 @@ function upcomingMonths(count) {
   return Array.from({ length: count }, (_, i) => {
     const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
     return {
+      key: monthKey(date),
       month: date.getMonth() + 1,
       label: new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(date),
       short_label: new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'numeric' }).format(date)
@@ -1374,7 +1433,7 @@ function headingTree(entries, key) {
       </button>
       ${isOpen ? `<ul class="h-entries" id="${esc(id)}">${list.map(e => `<li>
           <span class="h-item">${esc(e.item)} <span class="muted">(${esc(e.frequency)}${dueText(e) ? `, ${esc(dueText(e))}` : ''})</span>${e.setAside ? '<span class="aside-tag">Set aside</span>' : ''}</span>
-          <span class="h-amt">${inr(monthlyEquivalent(e))}</span>
+          <span class="h-amt">${isOnce(e) ? `${inr(Number(e.amount) || 0)} once` : inr(monthlyEquivalent(e))}</span>
         </li>`).join('')}</ul>` : ''}
     </li>`;
   }).join('')}</ul>`;
@@ -1401,16 +1460,24 @@ function renderHome() {
         <dl class="pay-figures">${figures.map(([label, amount]) => `<div><dt>${label}</dt><dd>${inr(amount)}</dd></div>`).join('')}</dl>
         ${headingTree(row.entries, `acc-${id}`)}
       </div>`;
-    return `<li>
+    const sent = isDone(monthKey(new Date()), 'sent', id);
+    return `<li class="${sent ? 'is-sent' : ''}">
+      <div class="pay-line">
+      <button type="button" class="tick pay-tick" data-action="tick-sent" data-id="${esc(id)}" aria-pressed="${sent}" aria-label="${sent ? 'Sent' : 'Mark as sent'}: ${esc(row.account.name)}">${TICK}</button>
       <button class="pay-row" data-action="toggle-account" data-id="${esc(id)}" aria-expanded="${isOpen}" aria-controls="pay-${esc(id)}">
         <span class="avatar" style="background:${typeColor[row.account.type] || 'var(--muted)'}" aria-hidden="true">${esc(initial)}</span>
         <span class="pay-text"><span class="pay-name">${esc(row.account.name)}</span>${row.account.role ? `<span class="pay-role">${esc(row.account.role)}</span>` : ''}</span>
         <span class="pay-amount">${money(row.total)}</span>
         <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
       </button>
+      </div>
       ${isOpen ? detail : ''}
     </li>`;
   }).join('');
+
+  const payIds = s.accounts.filter(row => row.total > 0 || row.entries.length).map(row => row.account.id);
+  const payCount = payIds.length;
+  const sentCount = payIds.filter(id => isDone(monthKey(new Date()), 'sent', id)).length;
 
   // Entries counted in the totals (those with an existing account), split three ways.
   // Set-aside entries are pulled out of expenses and savings for display only;
@@ -1522,7 +1589,7 @@ function renderHome() {
     ${splitCard}
     ${groupsHtml}
     <div class="card">
-      <div class="card-head"><h3>Transfer to each account this month</h3><span class="subtotals">Select an account to see its entries</span></div>
+      <div class="card-head"><h3>Transfer to each account this month</h3><span class="subtotals">${sentCount ? `${sentCount} of ${payCount} sent · ` : ''}Tick each one once sent</span></div>
       ${payRows ? `<ul class="pay-list">${payRows}</ul>
         <div class="pay-total"><span>Total to transfer<span class="pay-role">Includes ${inr(s.totals.yearlyPerMonth)} a month for yearly bills (${inr(s.totals.yearlyRouted)} a year)</span></span><span class="pay-amount">${money(s.totalTransfer)}</span></div>`
         : `<p class="empty">${s.accounts.length ? 'No transfers yet. Add entries on the Entries page.' : 'No accounts yet. Add one in Settings, under Accounts.'}</p>`}
@@ -1533,7 +1600,7 @@ function renderHome() {
 
 // Home: bills coming up in the next 3 months, and whether each account will have enough
 function billsHtml() {
-  const dated = S.data.entries.filter(e => dueMonths(e).length && S.data.accounts.some(a => a.id === e.account));
+  const dated = S.data.entries.filter(e => hasDue(e) && S.data.accounts.some(a => a.id === e.account));
   const accountName = id => (S.data.accounts.find(a => a.id === id) || {}).name || '';
   if (!dated.length) {
     return `<div class="card"><div class="card-head"><h3>Coming up</h3></div>
@@ -1541,7 +1608,14 @@ function billsHtml() {
   }
   // Each month: bills that will be paid, then set-aside costs that may happen
   const sumOf = list => list.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-  const billList = list => `<ul class="due-bills">${list.map(e => `<li><span>${esc(e.item)} <span class="muted">from ${esc(accountName(e.account))}</span></span><span class="num">${inr(Number(e.amount) || 0)}</span></li>`).join('')}</ul>`;
+  const billList = (list, key) => `<ul class="due-bills">${list.map(e => {
+    const paid = isDone(key, 'paid', e.id);
+    return `<li class="${paid ? 'is-paid' : ''}">
+        <button type="button" class="tick" data-action="tick-paid" data-id="${esc(key)}|${esc(e.id)}" aria-pressed="${paid}" aria-label="${paid ? 'Paid' : 'Mark as paid'}: ${esc(e.item)}">${TICK}</button>
+        <span class="due-item">${esc(e.item)}${isOnce(e) ? ' <span class="once-tag">One time</span>' : ''} <span class="muted">from ${esc(accountName(e.account))}</span></span>
+        <span class="num">${inr(Number(e.amount) || 0)}</span>
+      </li>`;
+  }).join('')}</ul>`;
 
   /* Money needed in a month: monthly entries at full amount; each yearly or
      quarterly bill due that month at its full amount instead of its monthly
@@ -1550,7 +1624,7 @@ function billsHtml() {
      monthly share. Set-aside entries are shown separately. */
   const live = S.data.entries.filter(e => S.data.accounts.some(a => a.id === e.account));
   const monthlyEntries = live.filter(e => e.frequency === 'Monthly');
-  const undated = live.filter(e => e.frequency !== 'Monthly' && !dueMonths(e).length);
+  const undated = live.filter(e => (e.frequency === 'Yearly' || e.frequency === 'Quarterly') && !dueMonths(e).length);
   const shareOf = list => list.reduce((sum, e) => sum + monthlyEquivalent(e), 0);
   // Savings and investments are shown on their own line, and still count in the total
   const isSaving = e => (S.data.sections.find(section => section.id === e.section) || {}).kind === 'savings';
@@ -1560,17 +1634,19 @@ function billsHtml() {
     const saving = e => !e.setAside && isSaving(e);
     const regular = sumOf(monthlyEntries.filter(expense));
     const shares = shareOf(notDue.filter(expense));
-    const bills = sumOf(due.filter(expense));
+    const bills = sumOf(due.filter(e => expense(e) && !isOnce(e)));
+    const once = sumOf(due.filter(e => expense(e) && isOnce(e)));
     const undatedShare = shareOf(undated.filter(expense));
     const invest = sumOf(monthlyEntries.filter(saving)) + shareOf(notDue.filter(saving)) + sumOf(due.filter(saving)) + shareOf(undated.filter(saving));
     const aside = sumOf(monthlyEntries.filter(e => e.setAside)) + shareOf(notDue.filter(e => e.setAside))
       + sumOf(due.filter(e => e.setAside)) + shareOf(undated.filter(e => e.setAside));
-    const total = regular + shares + bills + undatedShare + invest;
+    const total = regular + shares + bills + once + undatedShare + invest;
     return { total, html: `<div class="need">
         <div class="need-title">Money needed this month</div>
         <div class="need-line"><span>Monthly expenses</span><span>${inr(regular)}</span></div>
         <div class="need-line"><span>Monthly share for bills not due yet</span><span>${inr(shares)}</span></div>
         <div class="need-line"><span>Bills due this month, in full</span><span>${inr(bills)}</span></div>
+        ${once ? `<div class="need-line"><span>One-time expenses</span><span>${inr(once)}</span></div>` : ''}
         ${undatedShare ? `<div class="need-line"><span>Bills without a due month, monthly share</span><span>${inr(undatedShare)}</span></div>` : ''}
         <div class="need-line need-invest"><span>Savings and investments</span><span>${inr(invest)}</span></div>
         <div class="need-total"><span>Total</span><strong>${inr(total)}</strong></div>
@@ -1585,7 +1661,7 @@ function billsHtml() {
   const pick = pickable.includes(S.duePick) ? S.duePick : 2;
   const shown = [[year[1], 1, false], [year[pick], pick, false]];
   const monthRow = ([m, i, openByDefault]) => {
-    const due = dated.filter(e => dueMonths(e).includes(m.month));
+    const due = dated.filter(e => isDueIn(e, m));
     const bills = due.filter(e => !e.setAside);
     const aside = due.filter(e => e.setAside);
     const needed = neededHtml(due);
@@ -1608,10 +1684,10 @@ function billsHtml() {
             <span class="due-toggle-month">${label}</span><strong>${due.length ? inr(sumOf(due)) : ''}</strong>
           </button>
           ${bills.length && aside.length ? `<div class="due-sub-head"><span>Will pay</span><strong>${inr(sumOf(bills))}</strong></div>` : ''}
-          ${bills.length ? billList(bills) : (aside.length ? '' : '<p class="muted small" style="margin:0">No yearly or quarterly bills due.</p>')}
+          ${bills.length ? billList(bills, m.key) : (aside.length ? '' : '<p class="muted small" style="margin:0">Nothing due this month.</p>')}
           ${aside.length ? `<div class="due-aside">
             <div class="due-aside-head"><span>Set aside, if needed</span><strong>${inr(sumOf(aside))}</strong></div>
-            ${billList(aside)}
+            ${billList(aside, m.key)}
           </div>` : ''}
         </div>
         ${needed.html}
@@ -1627,7 +1703,7 @@ function billsHtml() {
     : '';
 
   return `<div class="card">
-      <div class="card-head"><h3>Coming up</h3><span class="subtotals">Yearly and quarterly bills and money needed</span></div>
+      <div class="card-head"><h3>Coming up</h3><span class="subtotals">Yearly, quarterly and one-time payments, and money needed</span></div>
       ${undatedNote}
       <ul class="due-list">${soon}</ul>
     </div>`;
@@ -1806,7 +1882,33 @@ function renderEntries() {
   $('page').innerHTML = `
     <div class="page-head"><h2>Entries</h2><button class="btn primary" data-action="add-section">Add heading</button></div>
     ${!S.data.accounts.length ? '<div class="notice">Add an account in Settings, under Accounts, before adding entries.</div>' : ''}
-    ${cards || '<div class="card"><p class="empty">No headings yet. Use Add heading to create one.</p></div>'}`;
+    <label class="search-box"><span class="sr-only">Search entries</span>
+      <input id="entry-search" type="search" placeholder="Search entries, headings, accounts or notes" value="${esc(S.search || '')}" autocomplete="off">
+    </label>
+    <div id="entry-results"></div>
+    <div id="entry-headings">${cards || '<div class="card"><p class="empty">No headings yet. Use Add heading to create one.</p></div>'}</div>`;
+  const search = $('entry-search');
+  search.addEventListener('input', () => { S.search = search.value; showSearch(); });
+  showSearch();
+}
+
+// Entries matching the search, across all headings; the headings list hides while searching
+function showSearch() {
+  const query = (S.search || '').trim().toLowerCase();
+  $('entry-headings').hidden = Boolean(query);
+  if (!query) { $('entry-results').innerHTML = ''; return; }
+  const name = (list, id) => (list.find(x => x.id === id) || {}).name || '';
+  const found = S.data.entries.filter(e => [e.item, e.notes, name(S.data.sections, e.section), name(S.data.accounts, e.account)]
+    .some(text => String(text || '').toLowerCase().includes(query)));
+  $('entry-results').innerHTML = `<div class="card">
+      <div class="card-head"><h3>${found.length === 1 ? '1 entry found' : `${found.length} entries found`}</h3></div>
+      ${found.length ? `<ul class="search-list">${found.map(e => `<li>
+          <span class="search-main"><span class="search-item">${esc(e.item)}${e.setAside ? '<span class="aside-tag">Set aside</span>' : ''}</span>
+            <span class="muted small">${esc(name(S.data.sections, e.section) || 'No heading')} · ${esc(e.frequency)}${dueText(e) ? ` · ${esc(dueText(e))}` : ''} · ${esc(name(S.data.accounts, e.account) || 'Deleted account')}</span></span>
+          <span class="num">${inr(Number(e.amount) || 0)}</span>
+          <button class="btn" data-action="edit-entry" data-id="${esc(e.id)}" aria-label="Edit ${esc(e.item)}">Edit</button>
+        </li>`).join('')}</ul>` : '<p class="empty">Nothing matches. Try another word.</p>'}
+    </div>`;
 }
 
 // A heading's own page, with its entries
@@ -1822,7 +1924,7 @@ function renderHeading() {
   const rows = entries.map(e => `<tr>
       <td class="title">${esc(e.item)}${e.setAside ? '<span class="aside-tag">Set aside</span>' : ''}</td>
       <td class="num" data-label="Amount">${inr(e.amount)}</td>
-      <td data-label="How often"><span>${esc(e.frequency)}${dueText(e) ? `<span class="muted small"> · ${esc(dueText(e))}</span>` : ''}${e.frequency !== 'Monthly' ? `<span class="per-month">${inr(monthlyEquivalent(e))} a month</span>` : ''}</span></td>
+      <td data-label="How often"><span>${esc(e.frequency)}${dueText(e) ? `<span class="muted small"> · ${esc(dueText(e))}</span>` : ''}${['Yearly', 'Quarterly'].includes(e.frequency) ? `<span class="per-month">${inr(monthlyEquivalent(e))} a month</span>` : ''}</span></td>
       <td data-label="Account">${esc(accountName(e.account))}</td>
       <td class="notes">${esc(e.notes)}</td>
       <td class="actions">
@@ -1860,6 +1962,11 @@ function openEntryDialog(entry, sectionId) {
   $('e-frequency').value = entry ? entry.frequency : 'Monthly';
   $('e-due').innerHTML = ['<option value="">Not set</option>', ...MONTHS.map((name, i) => `<option value="${i + 1}">${name}</option>`)].join('');
   $('e-due').value = entry && entry.dueMonth ? String(entry.dueMonth) : '';
+  // One-time: this month and the next 23, plus the entry's own month if it has passed
+  const dateOptions = upcomingMonths(24).map(m => [m.key, m.label]);
+  if (entry && entry.dueDate && !dateOptions.some(([key]) => key === entry.dueDate)) dateOptions.unshift([entry.dueDate, monthLabel(entry.dueDate)]);
+  $('e-due-date').innerHTML = ['<option value="">Choose the month</option>', ...dateOptions.map(([key, label]) => `<option value="${key}">${label}</option>`)].join('');
+  $('e-due-date').value = entry && entry.dueDate ? entry.dueDate : '';
   updateDueField();
   $('e-section').innerHTML = options(S.data.sections, entry ? entry.section : sectionId);
   $('e-account').innerHTML = options(S.data.accounts, entry ? entry.account : undefined);
@@ -1872,11 +1979,16 @@ function openEntryDialog(entry, sectionId) {
 // The due month only applies to yearly and quarterly entries
 function updateDueField() {
   const frequency = $('e-frequency').value;
+  const once = frequency === 'One time';
   $('e-due-wrap').hidden = frequency === 'Monthly';
-  $('e-due-label').textContent = frequency === 'Quarterly' ? 'First due month' : 'Due month';
-  $('e-due-hint').textContent = frequency === 'Quarterly'
-    ? 'The month of the first payment in the year. It then repeats every 3 months.'
-    : 'The month this is paid each year.';
+  $('e-due').hidden = once;
+  $('e-due-date').hidden = !once;
+  $('e-due-label').textContent = once ? 'Month' : frequency === 'Quarterly' ? 'First due month' : 'Due month';
+  $('e-due-hint').textContent = once
+    ? 'The month you expect to pay it. It shows in Coming up for that month only, and is not part of the monthly totals.'
+    : frequency === 'Quarterly'
+      ? 'The month of the first payment in the year. It then repeats every 3 months.'
+      : 'The month this is paid each year.';
 }
 
 function handleEntrySubmit(event) {
@@ -1885,9 +1997,11 @@ function handleEntrySubmit(event) {
   const amount = Number($('e-amount').value);
   if (!item) { $('entry-error').textContent = 'Enter the item name.'; return; }
   if ($('e-amount').value === '' || !Number.isFinite(amount) || amount < 0) { $('entry-error').textContent = 'Enter an amount of 0 or more.'; return; }
+  if ($('e-frequency').value === 'One time' && !$('e-due-date').value) { $('entry-error').textContent = 'Choose the month you expect to pay it.'; return; }
   const values = {
     section: $('e-section').value, item, amount, frequency: $('e-frequency').value,
-    dueMonth: $('e-frequency').value !== 'Monthly' && $('e-due').value ? Number($('e-due').value) : null,
+    dueMonth: ['Yearly', 'Quarterly'].includes($('e-frequency').value) && $('e-due').value ? Number($('e-due').value) : null,
+    dueDate: $('e-frequency').value === 'One time' ? $('e-due-date').value : null,
     account: $('e-account').value, notes: $('e-notes').value.trim(), setAside: $('e-aside').checked
   };
   const existing = S.editing && S.data.entries.find(e => e.id === S.editing);
@@ -2292,6 +2406,8 @@ const actions = {
     if (head) head.focus();
   },
   'add-entry'(id) { openEntryDialog(null, id); },
+  'tick-sent'(id) { toggleDone(monthKey(new Date()), 'sent', id); },
+  'tick-paid'(value) { const [key, id] = value.split('|'); toggleDone(key, 'paid', id); },
   'edit-entry'(id) { openEntryDialog(S.data.entries.find(e => e.id === id)); },
   async 'delete-entry'(id) {
     const entry = S.data.entries.find(e => e.id === id);

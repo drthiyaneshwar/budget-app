@@ -44,7 +44,7 @@ Yearly and quarterly entries can have `"dueMonth"` (1 to 12; for quarterly, the 
 
 An entry can also have `"setAside": true` for money kept ready for a cost that may not happen. It is still counted in the transfer, and Home shows it separately.
 
-Account type is `Income`, `Spending`, `Sinking` or `Savings`. Heading kind is `expense` or `savings`. Frequency is `Monthly`, `Quarterly` or `Yearly`.
+Account type is `Income`, `Spending`, `Sinking` or `Savings`. Heading kind is `expense` or `savings`. Frequency is `Monthly`, `Quarterly`, `Yearly` or `One time`. A one-time entry has `"dueDate": "YYYY-MM"` and is not counted in the monthly totals; it appears in Coming up in that month.
 
 ## Appearance
 
@@ -58,7 +58,7 @@ If two devices change the budget at the same time, the app combines the changes.
 
 ## How the numbers work
 
-- Monthly equivalent: Monthly = amount, Quarterly = amount ÷ 3, Yearly = amount ÷ 12.
+- Monthly equivalent: Monthly = amount, Quarterly = amount ÷ 3, Yearly = amount ÷ 12, One time = 0 (it is planned in its own month instead).
 - Yearly = monthly equivalent × 12.
 - Transfer per account = sum of the monthly equivalents of its entries.
 - Left in salary = income − total to transfer. The buffer check passes when left ≥ buffer.
