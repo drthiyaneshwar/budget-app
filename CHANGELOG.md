@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.0 - 2026-11-08
+
+Version 2.0 brings together everything added since 1.5.0. No new changes beyond 1.37.0.
+
+- Home: total to transfer, where your income goes, Expenses, Savings and investments and Set aside boxes, transfers per account with ticks, Coming up with money needed each month and paid ticks, and expected income for the next two months.
+- Earnings: extra work by type, with fixed or ask-each-time pay, pay delay and TDS, money coming in, and month-by-month pages for each type.
+- Entries: headings on their own pages, search, due months, set aside and one-time expenses.
+- Settings: income sources with TDS, accounts, theme, export, calculator, open without passcode, backups.
+- Syncing: changes from two devices are combined, with retries and time limits.
+
 ## 1.37.0 - 2026-11-08
 
 - A work type's page lists its months, newest first, with reads, pay and the month it is paid. Select a month to open its own page with date, reads and pay (and bill and TDS where TDS applies), latest first.
