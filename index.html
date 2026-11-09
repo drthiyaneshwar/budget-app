@@ -898,7 +898,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.19.1';
+const APP_VERSION = '2.19.2';
 // Mini window: opened as index.html?mini, it shows only Today's target, in its own window,
 // so it stays open whatever happens to the main app's tab
 const MINI = new URLSearchParams(location.search).has('mini');
@@ -2538,7 +2538,7 @@ function moonCardHtml(m, today) {
         ${s.monthNet ? `<div class="moon-big">${count(forecast, true)}</div>
         <div class="muted small">by ${esc(monthEnd)}${readType ? ` · ${esc(readType.name)} at this pace, other work as done so far` : ' at this pace'}</div>
         <div class="moon-fc"><span class="moon-fc-proj"></span><span class="moon-fc-now" style="width:${(s.monthNet / forecast * 100).toFixed(1)}%"></span></div>
-        <div class="fc-pay">${forecastByPay.map(x => `<div class="need-line"><span>${x.kind === 'main' ? `${readType ? esc(readType.name) : 'Reads'} at this pace` : 'Other work done so far'} <span class="muted">· paid ${esc(monthLabel(x.key))}${x.ahead === 1 ? ', next month' : x.ahead === 2 ? ', in 2 months' : ''}</span></span><strong>${inr(x.amount)}</strong></div>`).join('')}</div>`
+        <div class="fc-pay">${forecastByPay.map(x => `<div class="need-line"><span>Paid in ${esc(new Intl.DateTimeFormat('en-IN', { month: 'short' }).format(new Date(x.key + '-01T00:00:00')))}</span><strong>${inr(x.amount)}</strong></div>`).join('')}</div>`
         : '<div class="muted small">Log work this month to see a forecast.</div>'}
       </div>
     </div>
