@@ -893,7 +893,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.17.2';
+const APP_VERSION = '2.17.3';
 // Mini window: opened as index.html?mini, it shows only Today's target, in its own window,
 // so it stays open whatever happens to the main app's tab
 const MINI = new URLSearchParams(location.search).has('mini');
@@ -2434,14 +2434,14 @@ function moonCardHtml(m, today) {
       <div class="moon-badges">${badges.map(([icon, label, won], i) => `<div class="moon-badge${won ? ' won' : ''}" style="--d:${(i * .15 + .2).toFixed(2)}s"><span class="moon-medal" aria-hidden="true">${icon}</span>${label}<span class="sr-only">${won ? ', earned' : ', not yet'}</span></div>`).join('')}</div>
     </div>
     <button class="moon-goals-head" data-action="toggle-group" data-id="earn-goals" aria-expanded="${goalsOpen}" aria-controls="earn-goals">
-      <span>Set monthly goal <span class="muted small">· ${goal ? `${inr(goal)} · daily target ${inr(target)} for the rest of ${esc(monthName)}` : 'not set'} · new day at ${hourText(dayEndHour())}</span></span>
+      <span>Set monthly goal <span class="muted small">· ${goal ? `${inr(goal)} · daily target ${inr(target)} for the rest of ${esc(monthName)}` : 'not set'} · day ends at ${hourText(dayEndHour())}</span></span>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
     </button>
     ${goalsOpen ? `<div class="moon-goals" id="earn-goals">
       <label>Monthly goal, after TDS (₹) <input data-moon-goal="amount" type="number" inputmode="decimal" min="0" step="any" placeholder="Not set" value="${goal || ''}"></label>
       ${fixedTypes.length ? `<label>Count target reads in <select data-moon-goal="readType">${fixedTypes.map(t => `<option value="${esc(t.id)}"${t === readType ? ' selected' : ''}>${esc(t.name)} · ${Number(t.tds) ? `${inr(afterTds(Number(t.rate), t.tds))} a read after ${Number(t.tds)}% TDS` : `${inr(Number(t.rate))} a read`}</option>`).join('')}</select></label>` : ''}
-      <label>New day starts at <select data-moon-dayend>${Array.from({ length: 9 }, (_, h) => `<option value="${h}"${h === dayEndHour() ? ' selected' : ''}>${hourText(h)}${h === 0 ? ' (midnight)' : ''}</option>`).join('')}</select>
-        <span class="hint">Reads added before this time count for the day before, for today's target, sets, streak and speed.</span></label>
+      <label>Day ends at <select data-moon-dayend>${Array.from({ length: 9 }, (_, h) => `<option value="${h}"${h === dayEndHour() ? ' selected' : ''}>${hourText(h)}${h === 0 ? ' (midnight)' : ''}</option>`).join('')}</select>
+        <span class="hint">Your Moonlights day ends at this time the next morning. Reads added after midnight and before it still count for that day: today's target, sets, streak and speed.</span></label>
       <p class="muted small">The daily target is what is left of the goal shared over the days left this month, so it goes down on good days and up after a missed day.</p>
     </div>` : ''}
   </div>`;
@@ -4016,7 +4016,7 @@ function handlePageChange(event) {
     setMoon({ goals: { ...moon().goals, dayEnds: hour } });
     changed();
     render();
-    toast(`A new Moonlights day now starts at ${hourText(hour)}.`);
+    toast(`Your Moonlights day now ends at ${hourText(hour)}.`);
     return;
   }
   if (input.dataset.moonGoal) {
