@@ -430,6 +430,8 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .pip-card .mh-value { font-size: 1.25rem; margin-top: 2px; }
 .pip-card .mh-track { height: 8px; }
 .pip-add { margin-top: 10px; }
+.pip-speed { margin-top: 4px; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pip-speed strong { color: var(--text); }
 .pip-version { position: absolute; right: 14px; bottom: -16px; font-size: .65rem; color: var(--muted); }
 .pip-add input { flex: 1; width: auto; min-height: 34px; font-size: .9rem; }
 .pip-add .btn { min-height: 34px; padding: 4px 14px; font-size: .9rem; }
@@ -852,7 +854,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.14.0';
+const APP_VERSION = '2.15.0';
 // Mini window: opened as index.html?mini, it shows only Today's target, in its own window,
 // so it stays open whatever happens to the main app's tab
 const MINI = new URLSearchParams(location.search).has('mini');
@@ -1963,7 +1965,7 @@ function moonHomeHtml() {
 async function popOutToday() {
   if (S.pipWin && !S.pipWin.closed) { S.pipWin.focus(); return; }
   try {
-    const win = await window.documentPictureInPicture.requestWindow({ width: 340, height: 196 });
+    const win = await window.documentPictureInPicture.requestWindow({ width: 340, height: 220 });
     for (const style of document.querySelectorAll('style')) win.document.head.appendChild(style.cloneNode(true));
     if (document.documentElement.dataset.theme) win.document.documentElement.dataset.theme = document.documentElement.dataset.theme;
     win.document.title = "Today's target";
@@ -1977,6 +1979,29 @@ async function popOutToday() {
     toast('This browser could not open the small window.', true);
   }
 }
+
+// Reading speed from today's adds of the daily-target type. A sitting is the run of adds with gaps
+// under 45 minutes, ending at the latest add. The first add's reads were done before it was entered,
+// so speed = reads added after the first add ÷ time from the first add to the last.
+// Needs at least two adds (at least a minute apart, so the figure is meaningful); stale when the last add is over 45 minutes old.
+const SITTING_GAP = 45 * 60 * 1000;
+function readSpeed(m, readType) {
+  const todayKey = dateKey(new Date());
+  const stamps = m.log.filter(day => day.date === todayKey && !day.whole && (!readType || day.type === readType.id))
+    .flatMap(day => day.stamps || []).filter(x => Array.isArray(x) && x.length === 2).sort((a, b) => a[0] - b[0]);
+  if (stamps.length < 2) return null;
+  let first = stamps.length - 1;
+  while (first > 0 && stamps[first][0] - stamps[first - 1][0] < SITTING_GAP) first--;
+  const sitting = stamps.slice(first);
+  const hours = (sitting[sitting.length - 1][0] - sitting[0][0]) / 3600000;
+  if (sitting.length < 2 || hours < 1 / 60) return null;
+  const reads = sitting.slice(1).reduce((t, x) => t + (Number(x[1]) || 0), 0);
+  return { perHour: reads / hours, stale: Date.now() - sitting[sitting.length - 1][0] > SITTING_GAP };
+}
+const hoursText = h => {
+  const mins = Math.max(1, Math.round(h * 60));
+  return mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h${mins % 60 ? ` ${mins % 60}m` : ''}`;
+};
 
 function renderPip() {
   const win = S.pipWin;
@@ -2006,6 +2031,12 @@ function renderTodayBox(win, root, prevKey) {
       <div class="mh-value"><span class="pip-net">${inr(prev.net)}</span>${goal ? ` <span class="muted">of ${inr(target)}</span>` : ''}</div>
       ${goal ? `<div class="mh-track"><span class="mh-fill${reached ? ' done' : ''}" style="width:${(prev.part * 100).toFixed(1)}%"></span></div>` : ''}
       <div class="mh-note">${note}</div>
+      <div class="pip-speed">${(() => {
+        const speed = readSpeed(m, readType);
+        if (!speed) return '⚡ Speed shows after a few adds';
+        const left = goal && !reached && targetReads ? readsFor(target - s.todayNet) : 0;
+        return `⚡ ${speed.stale ? 'Last sitting ' : ''}<strong>${Math.round(speed.perHour).toLocaleString('en-IN')} reads/hr</strong>${left && !speed.stale ? ` · target in about ${hoursText(left / speed.perHour)}` : ''}`;
+      })()}</div>
       <span class="pip-version">v${esc(APP_VERSION)}</span>
       ${MINI ? '<a class="mini-full" href="./" target="_blank" rel="noopener">Open full app ↗</a>' : ''}
       ${readType ? `<form class="mh-add pip-add" novalidate><input type="number" inputmode="numeric" min="1" step="1" placeholder="${esc(readType.name)} reads" aria-label="${esc(readType.name)} reads done now"><button class="btn primary">Add</button></form>` : ''}
@@ -2142,9 +2173,11 @@ function addQuickReads(input) {
   const rate = Number(type.rate) || 0;
   const tds = Number(type.tds) || 0;
   const existing = m.log.find(day => day.date === date && day.type === type.id && !day.whole && (Number(day.tds) || 0) === tds);
+  // stamps: [time in ms, reads] for each add, so the small windows can show reading speed
+  const stamp = [Date.now(), reads];
   const log = existing
-    ? m.log.map(day => (day === existing ? { ...day, reads: (Number(day.reads) || 0) + reads, amount: (Number(day.amount) || 0) + reads * rate } : day))
-    : [...m.log, { id: newId('day'), date, type: type.id, reads, amount: reads * rate, delay: Number(type.delay) || 0, tds }];
+    ? m.log.map(day => (day === existing ? { ...day, reads: (Number(day.reads) || 0) + reads, amount: (Number(day.amount) || 0) + reads * rate, stamps: [...(day.stamps || []), stamp] } : day))
+    : [...m.log, { id: newId('day'), date, type: type.id, reads, amount: reads * rate, delay: Number(type.delay) || 0, tds, stamps: [stamp] }];
   setMoon({ log });
   S.mhGain = afterTds(reads * rate, tds);
   const total = log.find(day => day.date === date && day.type === type.id && !day.whole && (Number(day.tds) || 0) === tds).reads;
@@ -3667,7 +3700,7 @@ const actions = {
   'open-moonlights'() { go('earnings'); },
   'pop-out-today'() { popOutToday(); },
   'open-mini'() {
-    const win = window.open('./?mini', 'budget-mini', 'popup=yes,width=380,height=260');
+    const win = window.open('./?mini', 'budget-mini', 'popup=yes,width=380,height=290');
     if (!win) toast('Allow pop-ups for this site to open the mini window.', true);
   },
   'edit-day'(id) { S.editDay = id; render(); const first = $('edit-date'); if (first) first.focus(); },
