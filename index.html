@@ -164,6 +164,8 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .page-sub { color: var(--muted); font-size: .9rem; }
 /* Home on large screens: wider page, the same cards in two columns */
 @media (min-width: 1100px) {
+  main[data-page="earnings"], body[data-page="earnings"] .foot, body[data-page="earnings"] .topbar-in { max-width: 1440px; }
+  .earn-cols { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 0 16px; align-items: start; }
   main[data-page="home"], body[data-page="home"] .foot, body[data-page="home"] .topbar-in { max-width: 1440px; }
   .home-top, .home-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 16px; align-items: start; }
   .home-top { align-items: stretch; }
@@ -447,13 +449,30 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .mh-mark.pop { animation: mhPop .5s cubic-bezier(.3, 1.6, .5, 1) both; animation-delay: var(--d); }
 .mh-add { display: flex; gap: 4px; }
 .moon-home { position: relative; }
-.mh-coin { position: absolute; z-index: 2; width: 14px; height: 14px; border-radius: 50%; pointer-events: none;
-  background: radial-gradient(circle at 35% 35%, #FFE08A, #D08A1D); box-shadow: 0 0 0 1px #B7791F inset;
-  animation: mhCoin .8s cubic-bezier(.5, 0, .5, 1) both; }
-@keyframes mhCoin { from { transform: translate(0, 0) scale(1); opacity: 1; } to { transform: translate(var(--tx), var(--ty)) scale(.5); opacity: .2; } }
-.mh-plus { position: absolute; z-index: 2; font-weight: 800; font-size: .95rem; color: var(--good); pointer-events: none; white-space: nowrap; animation: mhPlus 1.3s ease-out both; }
-@keyframes mhPlus { from { opacity: 0; transform: translateY(8px) scale(.8); } 15% { opacity: 1; transform: translateY(0) scale(1.1); } to { opacity: 0; transform: translateY(-34px); } }
-.mh-fill.glow { box-shadow: 0 0 10px var(--seg-left); }
+.mh-coin { position: absolute; z-index: 3; border-radius: 50%; pointer-events: none; display: flex; align-items: center; justify-content: center;
+  font-weight: 900; line-height: 1; color: #8A5A0B; text-shadow: 0 1px 0 rgba(255, 255, 255, .5);
+  background: radial-gradient(circle at 32% 28%, #FFF6C8 0 12%, #FFD45E 35%, #E0A32E 70%, #A8700F 100%);
+  box-shadow: 0 0 0 1.5px #B7791F inset, 0 0 8px rgba(255, 200, 70, .85), 0 2px 4px rgba(0, 0, 0, .25);
+  opacity: 0; animation: mhCoin 1.35s cubic-bezier(.45, .05, .35, 1) both; }
+@keyframes mhCoin {
+  0% { opacity: 0; transform: translate(0, 0) scale(.3) rotateY(0); }
+  12% { opacity: 1; transform: translate(calc(var(--sway) * .6), calc(var(--arc) * -.6)) scale(1.15) rotateY(160deg); }
+  50% { transform: translate(calc(var(--tx) * .5 + var(--sway)), calc(var(--ty) * .5 - var(--arc))) scale(1.05) rotateY(540deg); }
+  88% { opacity: 1; transform: translate(var(--tx), var(--ty)) scale(.8) rotateY(980deg); }
+  100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(.2) rotateY(1080deg); } }
+.mh-spark { position: absolute; z-index: 3; width: 10px; height: 10px; font-size: 10px; line-height: 10px; text-align: center; pointer-events: none;
+  color: #FFD45E; text-shadow: 0 0 6px #FFB020, 0 0 2px #fff; animation: mhSpark 1.1s ease-out both; }
+@keyframes mhSpark { 0% { opacity: 0; transform: translate(0, 0) scale(.2) rotate(0); } 15% { opacity: 1; transform: translate(calc(var(--dx) * .3), calc(var(--dy) * .3)) scale(1.4) rotate(60deg); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.4) rotate(220deg); } }
+.mh-ring { position: absolute; z-index: 2; width: 20px; height: 20px; border-radius: 50%; pointer-events: none; border: 2px solid #FFD45E; box-shadow: 0 0 10px #FFB020; animation: mhRing .9s ease-out both; }
+@keyframes mhRing { from { opacity: .95; transform: scale(.3); } to { opacity: 0; transform: scale(3.2); } }
+.mh-plus { position: absolute; z-index: 4; font-weight: 900; font-size: 1.3rem; pointer-events: none; white-space: nowrap;
+  color: #E0A32E; background: linear-gradient(180deg, #FFE08A, #D08A1D); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1px 2px rgba(160, 100, 10, .45)); animation: mhPlus 3.8s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes mhPlus { 0% { opacity: 0; transform: translateY(10px) scale(.4); } 8% { opacity: 1; transform: translateY(-2px) scale(1.35); }
+  14% { transform: translateY(0) scale(1); } 70% { opacity: 1; transform: translateY(-8px) scale(1); } 100% { opacity: 0; transform: translateY(-40px) scale(.9); } }
+.mh-fill.glow { animation: mhGlow 3.6s ease-in-out both, mhFlow 1.2s linear infinite; }
+@keyframes mhGlow { 0%, 100% { box-shadow: 0 0 0 rgba(255, 190, 60, 0); } 20%, 60% { box-shadow: 0 0 14px 2px rgba(255, 190, 60, .9); } 40%, 80% { box-shadow: 0 0 6px 1px rgba(255, 190, 60, .55); } }
 .mh-add input { width: 62px; min-height: 28px; padding: 2px 5px; font-size: .8rem; font-weight: 500; border: 1px solid var(--field-line); border-radius: 7px; background: var(--field); }
 .mh-add input { -moz-appearance: textfield; appearance: textfield; }
 .mh-add input::-webkit-inner-spin-button, .mh-add input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
@@ -464,7 +483,7 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .mh-ticker span { position: absolute; left: 0; right: 0; top: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transform: translateY(100%); transition: opacity .4s, transform .4s; }
 .mh-ticker span.on { opacity: 1; transform: none; }
 .mh-ticker span.off { transform: translateY(-100%); }
-@media (prefers-reduced-motion: reduce) { .mh-fill, .mh-mark, .mh-ticker span, .mh-coin, .mh-plus, .mh-sets { animation: none !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { .mh-fill, .mh-mark, .mh-ticker span, .mh-coin, .mh-plus, .mh-sets, .mh-spark, .mh-ring { animation: none !important; transition: none !important; } }
 @media (max-width: 640px) {
   .mh-grid { grid-template-columns: 1fr; }
   .mh-cell + .mh-cell { border-left: 0; border-top: 1px solid var(--line); }
@@ -815,7 +834,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.12.3';
+const APP_VERSION = '2.13.1';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -1967,28 +1986,7 @@ function renderPip() {
   const gain = S.mhGain;
   const button = form && form.querySelector('.btn');
   if (gain && !still && fill && button) win.requestAnimationFrame(() => {
-    if (!fill.isConnected) return;
-    const box = root.querySelector('.pip-card').getBoundingClientRect();
-    const from = button.getBoundingClientRect();
-    const track = fill.parentElement.getBoundingClientRect();
-    const startX = from.left - box.left + from.width / 2 - 7, startY = from.top - box.top + from.height / 2 - 7;
-    const endX = track.left - box.left + track.width * part - 7, endY = track.top - box.top + track.height / 2 - 7;
-    const card = root.querySelector('.pip-card');
-    for (let i = 0; i < 8; i++) {
-      const coin = doc.createElement('span');
-      coin.className = 'mh-coin';
-      coin.style.cssText = `left:${startX}px;top:${startY}px;--tx:${endX - startX}px;--ty:${endY - startY}px;animation-delay:${i * 60}ms`;
-      card.appendChild(coin);
-      coin.addEventListener('animationend', () => coin.remove());
-    }
-    const plus = doc.createElement('span');
-    plus.className = 'mh-plus';
-    plus.textContent = `+${inr(gain)}`;
-    plus.style.cssText = `left:${Math.max(8, Math.min(endX + 12, track.right - box.left - 80))}px;top:${endY - 28}px`;
-    card.appendChild(plus);
-    plus.addEventListener('animationend', () => plus.remove());
-    fill.classList.add('glow');
-    win.setTimeout(() => fill.classList.remove('glow'), 1400);
+    if (fill.isConnected) coinShow(win, root.querySelector('.pip-card'), button, fill, part, gain);
   });
   if (still || prev.net === s.todayNet) { net.textContent = inr(s.todayNet); return; }
   // Time with the wall clock: the two windows give different frame times
@@ -1999,6 +1997,50 @@ function renderPip() {
     if (t < 1) win.requestAnimationFrame(step);
   };
   win.requestAnimationFrame(step);
+}
+
+// Coins for reads just added, about 4 seconds: 16 ₹ coins arc and spin from Add into the bar one after
+// another, two bursts of sparkles and a ripple come off the end of the bar, the bar glows gold, and the
+// amount pops up in gold and drifts away. host is the positioned box the effects are drawn in.
+function coinShow(win, host, button, fill, part, gain) {
+  const doc = host.ownerDocument;
+  const add = (cls, css, text) => {
+    const el = doc.createElement('span');
+    el.className = cls;
+    el.setAttribute('aria-hidden', 'true');
+    el.style.cssText = css;
+    if (text) el.textContent = text;
+    host.appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
+    return el;
+  };
+  const box = host.getBoundingClientRect();
+  const from = button.getBoundingClientRect();
+  const track = fill.parentElement.getBoundingClientRect();
+  const startX = from.left - box.left + from.width / 2, startY = from.top - box.top + from.height / 2;
+  const endX = track.left - box.left + track.width * Math.max(.02, Math.min(1, part)), endY = track.top - box.top + track.height / 2;
+  for (let i = 0; i < 16; i++) {
+    const size = 12 + (i * 7) % 7;
+    const arc = Math.min(48, Math.max(10, startY - 4)) * (.6 + ((i * 5) % 5) / 10);
+    const sway = ((i % 2 ? 1 : -1) * (8 + (i * 3) % 14));
+    add('mh-coin', `left:${startX - size / 2}px;top:${startY - size / 2}px;width:${size}px;height:${size}px;font-size:${size * .62}px;--tx:${endX - startX}px;--ty:${endY - startY}px;--arc:${arc}px;--sway:${sway}px;animation-delay:${i * 75}ms`, '₹');
+  }
+  const burst = (at, count, reach) => win.setTimeout(() => {
+    if (!host.isConnected) return;
+    add('mh-ring', `left:${endX - 10}px;top:${endY - 10}px`);
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 + at;
+      const dist = reach * (.7 + ((i * 7) % 5) / 10);
+      add('mh-spark', `left:${endX - 5}px;top:${endY - 5}px;--dx:${Math.cos(angle) * dist}px;--dy:${Math.sin(angle) * dist}px;animation-delay:${(i % 4) * 40}ms`, '✦');
+    }
+  }, at);
+  burst(1150, 12, 34);
+  burst(2300, 9, 26);
+  add('mh-plus', `left:${Math.max(6, Math.min(endX - 20, track.right - box.left - 96))}px;top:${endY - 34}px`, `+${inr(gain)}`);
+  fill.classList.remove('glow');
+  void fill.offsetWidth;
+  fill.classList.add('glow');
+  win.setTimeout(() => fill.classList.remove('glow'), 3800);
 }
 
 // After Home is drawn: slide the bars and count the figures to their new values, and wire up quick add
@@ -2028,28 +2070,7 @@ function moonHomeAfter() {
   const fill = box.querySelector('.mh-fill');
   const button = form && form.querySelector('.btn');
   if (!gain || still || !fill || !button) return;
-  const home = box.getBoundingClientRect();
-  const from = button.getBoundingClientRect();
-  const track = fill.parentElement.getBoundingClientRect();
-  const startX = from.left - home.left + from.width / 2 - 7, startY = from.top - home.top + from.height / 2 - 7;
-  const endX = track.left - home.left + track.width * Math.min(1, Number(fill.dataset.w) / 100) - 7, endY = track.top - home.top + track.height / 2 - 7;
-  for (let i = 0; i < 6; i++) {
-    const coin = document.createElement('span');
-    coin.className = 'mh-coin';
-    coin.setAttribute('aria-hidden', 'true');
-    coin.style.cssText = `left:${startX}px;top:${startY}px;--tx:${endX - startX}px;--ty:${endY - startY}px;animation-delay:${i * 70}ms`;
-    box.appendChild(coin);
-    coin.addEventListener('animationend', () => coin.remove());
-  }
-  const plus = document.createElement('span');
-  plus.className = 'mh-plus';
-  plus.setAttribute('aria-hidden', 'true');
-  plus.textContent = `+${inr(gain)}`;
-  plus.style.cssText = `left:${Math.max(8, Math.min(endX + 12, track.right - home.left - 70))}px;top:${endY - 26}px`;
-  box.appendChild(plus);
-  plus.addEventListener('animationend', () => plus.remove());
-  fill.classList.add('glow');
-  setTimeout(() => fill.classList.remove('glow'), 1400);
+  coinShow(window, box, button, fill, Number(fill.dataset.w) / 100, gain);
 }
 
 // Home quick add: reads done just now, for today, in the type the daily target is counted in.
@@ -2279,6 +2300,7 @@ function renderEarnings() {
   // Money coming in, Work logged and Work types each open on their own page
   const section = S.page === 'earn-section' ? S.earnSection : '';
   const sections = {
+    ...(m.types.length ? { income: { title: 'Income by type', sub: `${m.types.length === 1 ? '1 type' : `${m.types.length} types`} · select one to see its work month by month` } } : {}),
     pay: { title: 'Money coming in', sub: payRows.length
       ? `Next: ${inr(payRows[0].amount)} in ${esc(monthLabel(payRows[0].key))} · this month's work so far ${inr(thisMonthAmount)}`
       : 'Nothing logged yet' },
@@ -2288,6 +2310,9 @@ function renderEarnings() {
   const chevRight = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 
   const bodies = {
+    income: () => `<ul class="type-list">${m.types.map(t => `<li><button class="type-row" data-action="open-earn-type" data-id="${esc(t.id)}">
+            <span class="type-main"><span class="type-name">${esc(t.name)}</span></span>${chevRight}
+          </button></li>`).join('')}</ul>`,
     pay: () => payRows.length ? `<ul class="earn-pay">${payRows.map(row => `<li>
           <div class="earn-pay-head"><span>Paid in ${esc(monthLabel(row.key))}</span><strong>${inr(row.amount)}</strong></div>
           ${row.tds > 0.5 ? `<div class="earn-pay-part muted"><span>After ${inr(row.tds)} TDS</span></div>` : ''}
@@ -2326,7 +2351,9 @@ function renderEarnings() {
 
   $('page').innerHTML = `
     <div class="page-head"><div><h2>Moonlights</h2><div class="page-sub">Moonlighting work and when it is paid</div></div></div>
-    ${m.types.length ? moonCardHtml(m, today) : ''}
+    <div class="earn-cols">
+    ${m.types.length ? `<div class="earn-left">${moonCardHtml(m, today)}</div>` : ''}
+    <div class="earn-right">
     ${m.types.length ? `<div class="card">
       <div class="card-head"><h3>Add work</h3></div>
       <form class="card-body earn-form" id="earn-form" novalidate>
@@ -2342,20 +2369,12 @@ function renderEarnings() {
         <button class="btn primary">Add</button>
       </form>
     </div>` : ''}
-    ${m.types.length ? `<div class="card">
-      <div class="card-head"><h3>Income by type</h3><span class="subtotals">Select a type to see its work month by month</span></div>
-      <ul class="type-list">${m.types.map(t => {
-        return `<li><button class="type-row" data-action="open-earn-type" data-id="${esc(t.id)}">
-            <span class="type-main"><span class="type-name">${esc(t.name)}</span></span>
-            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
-          </button></li>`;
-      }).join('')}</ul>
-    </div>` : ''}
     <div class="card">
       <ul class="type-list">${Object.entries(sections).map(([id, sec]) => `<li><button class="type-row" data-action="open-earn-section" data-id="${id}">
           <span class="type-main"><span class="type-name">${sec.title}</span><span class="muted small">${sec.sub}</span></span>${chevRight}
         </button></li>`).join('')}</ul>
-    </div>`;
+    </div>
+    </div></div>`;
   if (!m.types.length) return;
   moonAnimate();
   $('earn-form').addEventListener('submit', handleEarnSubmit);
@@ -2394,7 +2413,7 @@ function renderEarnDays() {
   }
   const rows = [...months.values()].sort((a, b) => b.key.localeCompare(a.key));
   $('page').innerHTML = `
-    <button type="button" class="btn link back-link" data-action="close-earn-days">‹ Back to Moonlights</button>
+    <button type="button" class="btn link back-link" data-action="close-earn-days">‹ Back to Income by type</button>
     <div class="page-head"><div><h2>${esc(type.name)}</h2><div class="page-sub">${type.fixed ? `${inr(Number(type.rate) || 0)} a read` : 'Pay entered each time'} · paid ${type.delay == 1 ? 'next month' : `after ${Number(type.delay) || 0} months`}${Number(type.tds) ? ` · ${Number(type.tds)}% TDS` : ''}</div></div></div>
     <div class="card">
       ${rows.length ? `<ul class="type-list">${rows.map(row => `<li><button class="type-row" data-action="open-earn-month" data-id="${row.key}">
@@ -3686,7 +3705,7 @@ const actions = {
   'open-earn-type'(id) { S.earnView = id; go('earn-days'); },
   'open-earn-month'(key) { S.earnMonth = key; go('earn-month'); },
   'close-earn-month'() { go('earn-days'); },
-  'close-earn-days'() { go('earnings'); },
+  'close-earn-days'() { S.earnSection = 'income'; go('earn-section'); },
   'open-earn-section'(id) { S.earnSection = id; S.editDay = null; go('earn-section'); },
   'close-earn-section'() { go('earnings'); },
   'open-heading'(id) { S.heading = id; go('heading'); },
