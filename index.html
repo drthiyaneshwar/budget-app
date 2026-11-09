@@ -802,7 +802,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.10.1';
+const APP_VERSION = '2.10.2';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -2588,7 +2588,7 @@ function billsHtml() {
   const undated = live.filter(e => (e.frequency === 'Yearly' || e.frequency === 'Quarterly') && !dueMonths(e).length);
   const neededHtml = (due, m) => {
     const n = monthNeed(m);
-    return { total: n.needed, fromSaved: n.fromSaved, html: `<div class="need">
+    return { total: n.needed, fromSaved: n.fromSaved, once: n.once, html: `<div class="need">
         <div class="need-title">Money needed this month</div>
         <div class="need-line"><span>Monthly expenses</span><span>${inr(n.regular)}</span></div>
         <div class="need-line need-invest"><span>Savings and investments</span><span>${inr(n.invest)}</span></div>
@@ -2621,7 +2621,7 @@ function billsHtml() {
         <button class="due-toggle" data-action="toggle-group" data-id="${id}" aria-expanded="false">
           <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
           <span class="due-toggle-month">${label}</span>
-          <span class="due-toggle-sum">${needed.fromSaved >= 1 ? `<span>+ ${inr(needed.fromSaved)} from savings</span>` : ''}<span>Money needed <strong>${inr(needed.total)}</strong></span></span>
+          <span class="due-toggle-sum">${needed.once >= 1 ? `<span>+ ${inr(needed.once)} one-time</span>` : ''}${needed.fromSaved >= 1 ? `<span>+ ${inr(needed.fromSaved)} from savings</span>` : ''}<span>Money needed <strong>${inr(needed.total)}</strong></span></span>
         </button>
       </li>`;
     }
