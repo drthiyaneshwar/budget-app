@@ -430,6 +430,42 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .pip-card .mh-value { font-size: 1.25rem; margin-top: 2px; }
 .pip-card .mh-track { height: 8px; }
 .pip-add { margin-top: 10px; }
+.pip-card.pip-cat { padding-top: 26px; }
+.cat-row { display: flex; gap: 14px; align-items: flex-end; margin-top: 6px; }
+.cat-stage { position: relative; flex: none; width: 72px; display: flex; flex-direction: column; align-items: center; }
+.cat-info { flex: 1; min-width: 0; }
+.jar { position: relative; display: flex; flex-direction: column; align-items: center; }
+.jar-lid { width: 46px; height: 9px; border-radius: 4px 4px 2px 2px; background: linear-gradient(#C68E4E, #8C5A26); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .2); }
+.jar-body { position: relative; width: 64px; height: 84px; margin-top: -1px; overflow: hidden; border: 3px solid rgba(140, 175, 210, .75); border-radius: 9px 9px 18px 18px;
+  background: rgba(170, 205, 240, .12); box-shadow: inset 0 0 8px rgba(255, 255, 255, .15); }
+.jar-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0;
+  background: radial-gradient(circle at 50% 40%, #FFE9A6 0 2.5px, transparent 3px) 0 0 / 11px 9px, radial-gradient(circle at 50% 40%, #FFDF7E 0 2.5px, transparent 3px) 5px 4px / 11px 9px, linear-gradient(#FFD45E, #C98B1A);
+  border-top: 2px solid #FFE9A6; transition: height 2.4s cubic-bezier(.3, .7, .3, 1); }
+.jar-shine { position: absolute; top: 6px; left: 7px; width: 7px; height: 60%; border-radius: 4px; background: linear-gradient(rgba(255, 255, 255, .55), rgba(255, 255, 255, 0)); pointer-events: none; }
+.jar.full .jar-body { border-color: #E8B93E; }
+.jar.glow .jar-body { animation: jarGlow 5s ease-in-out; }
+@keyframes jarGlow { 0%, 100% { box-shadow: inset 0 0 8px rgba(255, 255, 255, .15); } 40%, 70% { box-shadow: inset 0 0 8px rgba(255, 255, 255, .15), 0 0 16px 3px rgba(255, 190, 60, .8); } }
+.jar-pct { margin-top: 3px; font-size: .72rem; font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tux-cat { position: absolute; z-index: 5; width: 68px; height: 63px; pointer-events: none; filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, .55)) drop-shadow(0 2px 2px rgba(0, 0, 0, .3));
+  animation: tuxJump 5s cubic-bezier(.4, 0, .4, 1) both; }
+@keyframes tuxJump {
+  0% { opacity: 0; transform: translate(var(--x0), var(--y0)) rotate(-18deg) scale(.9); }
+  4% { opacity: 1; }
+  10% { transform: translate(calc(var(--x0) * .45), calc(var(--y0) - 46px)) rotate(-10deg) scale(1); }
+  18% { transform: translate(0, 0) rotate(0) scale(1.08, .86); }
+  23% { transform: translate(0, -4px) scale(.96, 1.06); }
+  27%, 74% { transform: translate(0, 0) scale(1); }
+  80% { transform: translate(0, 3px) scale(1.06, .9); }
+  89% { opacity: 1; transform: translate(calc(var(--x2) * .5), calc(var(--y2) - 44px)) rotate(12deg); }
+  100% { opacity: 0; transform: translate(var(--x2), var(--y2)) rotate(20deg); } }
+.tux-cat svg { display: block; overflow: visible; }
+.tux-tail { transform-origin: 44px 46px; animation: tuxTail .55s ease-in-out 1.3s 6 alternate; }
+@keyframes tuxTail { from { transform: rotate(-10deg); } to { transform: rotate(14deg); } }
+.tux-eyes { transform-origin: 30px 16.5px; animation: tuxBlink 5s steps(1) both; }
+@keyframes tuxBlink { 0%, 44%, 47%, 66%, 69%, 100% { transform: scaleY(1); } 45%, 67% { transform: scaleY(.1); } }
+.mh-coin.cat-coin { animation: catDrop .65s cubic-bezier(.5, 0, .9, .6) both; }
+@keyframes catDrop { 0% { opacity: 0; transform: translateY(-4px) rotateY(0) scale(.8); } 15% { opacity: 1; } 85% { opacity: 1; transform: translateY(var(--fall)) rotateY(540deg) scale(1); }
+  100% { opacity: 0; transform: translateY(var(--fall)) rotateY(600deg) scale(.6); } }
 .pip-speed { margin-top: 4px; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .pip-speed strong { color: var(--text); }
 .pip-version { position: absolute; right: 14px; bottom: -16px; font-size: .65rem; color: var(--muted); }
@@ -503,7 +539,7 @@ body[data-mini] .pip-version { display: none; }
 .mh-ticker span { position: absolute; left: 0; right: 0; top: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transform: translateY(100%); transition: opacity .4s, transform .4s; }
 .mh-ticker span.on { opacity: 1; transform: none; }
 .mh-ticker span.off { transform: translateY(-100%); }
-@media (prefers-reduced-motion: reduce) { .mh-fill, .mh-mark, .mh-ticker span, .mh-coin, .mh-plus, .mh-sets, .mh-spark, .mh-ring { animation: none !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { .mh-fill, .mh-mark, .mh-ticker span, .mh-coin, .mh-plus, .mh-sets, .mh-spark, .mh-ring, .jar-fill, .tux-cat, .jar-body { animation: none !important; transition: none !important; } }
 @media (max-width: 640px) {
   .mh-grid { grid-template-columns: 1fr; }
   .mh-cell + .mh-cell { border-left: 0; border-top: 1px solid var(--line); }
@@ -854,7 +890,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.15.0';
+const APP_VERSION = '2.16.0';
 // Mini window: opened as index.html?mini, it shows only Today's target, in its own window,
 // so it stays open whatever happens to the main app's tab
 const MINI = new URLSearchParams(location.search).has('mini');
@@ -1965,7 +2001,7 @@ function moonHomeHtml() {
 async function popOutToday() {
   if (S.pipWin && !S.pipWin.closed) { S.pipWin.focus(); return; }
   try {
-    const win = await window.documentPictureInPicture.requestWindow({ width: 340, height: 220 });
+    const win = await window.documentPictureInPicture.requestWindow({ width: 340, height: getPopupStyle() === 'cat' ? 290 : 220 });
     for (const style of document.querySelectorAll('style')) win.document.head.appendChild(style.cloneNode(true));
     if (document.documentElement.dataset.theme) win.document.documentElement.dataset.theme = document.documentElement.dataset.theme;
     win.document.title = "Today's target";
@@ -1985,6 +2021,17 @@ async function popOutToday() {
 // so speed = reads added after the first add ÷ time from the first add to the last.
 // Needs at least two adds (at least a minute apart, so the figure is meaningful); stale when the last add is over 45 minutes old.
 const SITTING_GAP = 45 * 60 * 1000;
+
+// Look of the floating and mini windows, chosen in Settings → Appearance (this device only):
+// 'standard' is the bar with flying coins; 'cat' is a coin jar that a tuxedo cat fills.
+const POPUP_STYLES = [['standard', 'Standard: bar and flying coins'], ['cat', 'Tuxedo cat: coin jar']];
+function getPopupStyle() {
+  try { const v = localStorage.getItem('budgetPopupStyle'); return POPUP_STYLES.some(x => x[0] === v) ? v : 'standard'; } catch { return 'standard'; }
+}
+function setPopupStyle(v) {
+  try { localStorage.setItem('budgetPopupStyle', v); } catch {}
+  if (S.pipWin) { S.pipPrev = null; renderPip(); }
+}
 function readSpeed(m, readType) {
   const todayKey = dateKey(new Date());
   const stamps = m.log.filter(day => day.date === todayKey && !day.whole && (!readType || day.type === readType.id))
@@ -2026,25 +2073,54 @@ function renderTodayBox(win, root, prevKey) {
   const note = !goal ? 'Set a monthly goal in Moonlights'
     : reached ? `Today's target reached ✓ · ${xray.toLocaleString('en-IN')} ${readType ? `${esc(readType.name)} ` : ''}reads today`
     : targetReads ? `${xray.toLocaleString('en-IN')} ${readType ? `${esc(readType.name)} ` : ''}reads done · ${readsFor(target - s.todayNet).toLocaleString('en-IN')} more to reach today's target` : `${inr(target - s.todayNet)} to go today`;
-  root.innerHTML = `<div class="pip-card">
-      <div class="mh-label mh-label-row"><span>Today's target</span><span class="mh-sets${sets >= READ_SETS_IDEAL ? ' done' : ''}${sets > prev.sets ? ' pop' : ''}">${sets}/${READ_SETS_IDEAL} sets</span></div>
-      <div class="mh-value"><span class="pip-net">${inr(prev.net)}</span>${goal ? ` <span class="muted">of ${inr(target)}</span>` : ''}</div>
+  const speedHtml = (() => {
+    const speed = readSpeed(m, readType);
+    if (!speed) return '⚡ Speed shows after a few adds';
+    const left = goal && !reached && targetReads ? readsFor(target - s.todayNet) : 0;
+    return `⚡ ${speed.stale ? 'Last sitting ' : ''}<strong>${Math.round(speed.perHour).toLocaleString('en-IN')} reads/hr</strong>${left && !speed.stale ? ` · target in about ${hoursText(left / speed.perHour)}` : ''}`;
+  })();
+  const head = `<div class="mh-label mh-label-row"><span>Today's target</span><span class="mh-sets${sets >= READ_SETS_IDEAL ? ' done' : ''}${sets > prev.sets ? ' pop' : ''}">${sets}/${READ_SETS_IDEAL} sets</span></div>`;
+  const value = `<div class="mh-value"><span class="pip-net">${inr(prev.net)}</span>${goal ? ` <span class="muted">of ${inr(target)}</span>` : ''}</div>`;
+  const foot = `<span class="pip-version">v${esc(APP_VERSION)}</span>
+      ${MINI ? '<a class="mini-full" href="./" target="_blank" rel="noopener">Open full app ↗</a>' : ''}
+      ${readType ? `<form class="mh-add pip-add" novalidate><input type="number" inputmode="numeric" min="1" step="1" placeholder="${esc(readType.name)} reads" aria-label="${esc(readType.name)} reads done now"><button class="btn primary">Add</button></form>` : ''}`;
+  const catStyle = getPopupStyle() === 'cat';
+  root.innerHTML = catStyle
+    ? `<div class="pip-card pip-cat">
+      ${head}
+      <div class="cat-row">
+        <div class="cat-stage">
+          <div class="jar${reached ? ' full' : ''}" role="img" aria-label="Coin jar ${Math.round(part * 100)}% full">
+            <div class="jar-lid"></div>
+            <div class="jar-body"><div class="jar-fill" style="height:${(prev.part * 100).toFixed(1)}%"></div><div class="jar-shine"></div></div>
+          </div>
+          <div class="jar-pct">${Math.round(part * 100)}%</div>
+        </div>
+        <div class="cat-info">${value}<div class="mh-note">${note}</div><div class="pip-speed">${speedHtml}</div></div>
+      </div>
+      ${foot}
+    </div>`
+    : `<div class="pip-card">
+      ${head}
+      ${value}
       ${goal ? `<div class="mh-track"><span class="mh-fill${reached ? ' done' : ''}" style="width:${(prev.part * 100).toFixed(1)}%"></span></div>` : ''}
       <div class="mh-note">${note}</div>
-      <div class="pip-speed">${(() => {
-        const speed = readSpeed(m, readType);
-        if (!speed) return '⚡ Speed shows after a few adds';
-        const left = goal && !reached && targetReads ? readsFor(target - s.todayNet) : 0;
-        return `⚡ ${speed.stale ? 'Last sitting ' : ''}<strong>${Math.round(speed.perHour).toLocaleString('en-IN')} reads/hr</strong>${left && !speed.stale ? ` · target in about ${hoursText(left / speed.perHour)}` : ''}`;
-      })()}</div>
-      <span class="pip-version">v${esc(APP_VERSION)}</span>
-      ${MINI ? '<a class="mini-full" href="./" target="_blank" rel="noopener">Open full app ↗</a>' : ''}
-      ${readType ? `<form class="mh-add pip-add" novalidate><input type="number" inputmode="numeric" min="1" step="1" placeholder="${esc(readType.name)} reads" aria-label="${esc(readType.name)} reads done now"><button class="btn primary">Add</button></form>` : ''}
+      <div class="pip-speed">${speedHtml}</div>
+      ${foot}
     </div>`;
   const form = root.querySelector('form');
   if (form) form.addEventListener('submit', event => { event.preventDefault(); addQuickReads(form.querySelector('input')); });
   const still = win.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const fill = root.querySelector('.mh-fill');
+  const jarFill = root.querySelector('.jar-fill');
+  if (jarFill) {
+    // The jar fills while the cat drops its coins in, or straight away when nothing was just added
+    const added = S.mhGain;   // read now: it is cleared once this render finishes
+    const dropping = added && !still;
+    if (dropping) jarFill.style.transitionDelay = '1.2s';
+    win.requestAnimationFrame(() => win.requestAnimationFrame(() => { jarFill.style.height = (part * 100).toFixed(1) + '%'; }));
+    if (dropping) win.requestAnimationFrame(() => { if (jarFill.isConnected) catShow(win, root.querySelector('.pip-card'), root.querySelector('.jar-body'), part, added); });
+  }
   win.requestAnimationFrame(() => win.requestAnimationFrame(() => { if (fill) fill.style.width = (part * 100).toFixed(1) + '%'; }));
   const net = root.querySelector('.pip-net');
   // Just added reads: coins fly from Add into the bar and the amount floats up, as on Home
@@ -2062,6 +2138,64 @@ function renderTodayBox(win, root, prevKey) {
     if (t < 1) win.requestAnimationFrame(step);
   };
   win.requestAnimationFrame(step);
+}
+
+// Tuxedo cat (black with a white chest, muzzle and paws), drawn small enough to sit on the jar
+const TUX_CAT = `<svg viewBox="0 0 60 56" width="68" height="63" aria-hidden="true">
+  <path class="tux-tail" d="M44 46 C58 44 58 30 52 24" fill="none" stroke="#111" stroke-width="5" stroke-linecap="round"/>
+  <ellipse cx="30" cy="40" rx="17" ry="14" fill="#141414"/>
+  <ellipse cx="30" cy="43" rx="8.5" ry="10.5" fill="#fff"/>
+  <path d="M18 12 L20 1 L28 8 Z M42 12 L40 1 L32 8 Z" fill="#141414"/>
+  <path d="M20.5 9.5 L21.3 4 L25 7.5 Z M39.5 9.5 L38.7 4 L35 7.5 Z" fill="#E9A1A8"/>
+  <circle cx="30" cy="18" r="12.5" fill="#141414"/>
+  <path d="M30 8 L26.5 20 L33.5 20 Z" fill="#fff"/>
+  <ellipse cx="30" cy="23.5" rx="7" ry="5" fill="#fff"/>
+  <g class="tux-eyes"><ellipse cx="24.5" cy="16.5" rx="2.6" ry="3" fill="#C9E15A"/><ellipse cx="35.5" cy="16.5" rx="2.6" ry="3" fill="#C9E15A"/>
+  <ellipse cx="24.5" cy="16.7" rx=".9" ry="2.3" fill="#111"/><ellipse cx="35.5" cy="16.7" rx=".9" ry="2.3" fill="#111"/></g>
+  <path d="M28.6 21.6 L31.4 21.6 L30 23.2 Z" fill="#E58A96"/>
+  <path d="M30 23.2 Q28.5 25.6 27 24.6 M30 23.2 Q31.5 25.6 33 24.6" fill="none" stroke="#999" stroke-width=".7"/>
+  <path d="M23 23.5 L15 22.5 M23 24.8 L15.5 26 M37 23.5 L45 22.5 M37 24.8 L44.5 26" stroke="#bbb" stroke-width=".6"/>
+  <ellipse cx="23" cy="53" rx="4.6" ry="2.8" fill="#fff"/><ellipse cx="37" cy="53" rx="4.6" ry="2.8" fill="#fff"/>
+</svg>`;
+
+// The cat show, about 5 seconds: the cat leaps in from the right onto the jar's rim, drops coins in one by
+// one while the jar fills, flicks its tail, then leaps off to the left. host is the window's card.
+function catShow(win, host, jarBody, part, gain) {
+  const doc = host.ownerDocument;
+  const add = (cls, css, html) => {
+    const el = doc.createElement('span');
+    el.className = cls;
+    el.setAttribute('aria-hidden', 'true');
+    el.style.cssText = css;
+    if (html) el.innerHTML = html;
+    host.appendChild(el);
+    el.addEventListener('animationend', event => { if (event.target === el) el.remove(); });
+    return el;
+  };
+  const box = host.getBoundingClientRect();
+  const jar = jarBody.getBoundingClientRect();
+  const catW = 68, catH = 63;
+  const landX = jar.left - box.left + jar.width / 2 - catW / 2, landY = jar.top - box.top - catH + 4;
+  add('tux-cat', `left:${landX}px;top:${landY}px;--x0:${box.width - landX + 20}px;--y0:-30px;--x2:${-landX - catW - 20}px;--y2:-20px`, TUX_CAT);
+  // Coins from the cat's paws into the jar, landing on the coins already there
+  const mouthX = jar.left - box.left + jar.width / 2, mouthY = jar.top - box.top;
+  const fillTop = jar.height * (1 - Math.min(1, part));
+  for (let i = 0; i < 12; i++) {
+    const x = mouthX - 7 + ((i * 5) % 11) - 5;
+    add('cat-coin mh-coin', `left:${x}px;top:${mouthY - 6}px;width:14px;height:14px;font-size:9px;--fall:${Math.max(8, fillTop - 4)}px;animation-delay:${1150 + i * 190}ms`, '₹');
+  }
+  // A sparkle off the jar as it fills, the amount in gold, and the jar glowing
+  win.setTimeout(() => {
+    if (!host.isConnected) return;
+    for (let i = 0; i < 10; i++) {
+      const angle = (i / 10) * Math.PI * 2;
+      add('mh-spark', `left:${mouthX - 5}px;top:${mouthY + 6}px;--dx:${Math.cos(angle) * 30}px;--dy:${Math.sin(angle) * 22}px;animation-delay:${(i % 3) * 50}ms`, '✦');
+    }
+  }, 3500);
+  add('mh-plus big', `left:${Math.min(box.width - 150, jar.right - box.left + 14)}px;top:${Math.max(0, mouthY - 34)}px`, `+${inr(gain)}`);
+  const jarEl = jarBody.parentElement;
+  jarEl.classList.add('glow');
+  win.setTimeout(() => jarEl.classList.remove('glow'), 5200);
 }
 
 // Coins for reads just added, about 4 seconds: 16 ₹ coins arc and spin from Add into the bar one after
@@ -3379,12 +3513,15 @@ function renderSettings() {
           <input id="set-buffer" type="number" inputmode="decimal" min="0" step="any" value="${esc(S.data.settings.buffer)}">
         </label>
       </div></div>` },
-    appearance: { title: 'Appearance', sub: { system: 'Same as device', light: 'Normal (light)', dark: 'Dark' }[getTheme()] || 'Theme',
+    appearance: { title: 'Appearance', sub: `${{ system: 'Same as device', light: 'Normal (light)', dark: 'Dark' }[getTheme()] || 'Theme'} · pop-up ${getPopupStyle() === 'cat' ? 'tuxedo cat' : 'standard'}`,
       body: () => `<div class="card"><div class="card-body">
         <label style="margin-bottom:0">Theme <span class="hint">Applies to this device only.</span>
           <select id="set-theme">
             ${[['system', 'Same as device'], ['light', 'Normal (light)'], ['dark', 'Dark']].map(([value, label]) => `<option value="${value}"${getTheme() === value ? ' selected' : ''}>${label}</option>`).join('')}
           </select>
+        </label>
+        <label style="margin:16px 0 0">Pop-up style <span class="hint">For the floating window and the mini window on this device. Home stays the same.</span>
+          <select id="set-popup">${POPUP_STYLES.map(([value, label]) => `<option value="${value}"${getPopupStyle() === value ? ' selected' : ''}>${label}</option>`).join('')}</select>
         </label>
       </div></div>` },
     accounts: { title: 'Accounts', sub: `${count === 1 ? '1 account' : `${count} accounts`} · names, types and balances`, body: () => accountsCard() },
@@ -3700,7 +3837,7 @@ const actions = {
   'open-moonlights'() { go('earnings'); },
   'pop-out-today'() { popOutToday(); },
   'open-mini'() {
-    const win = window.open('./?mini', 'budget-mini', 'popup=yes,width=380,height=290');
+    const win = window.open('./?mini', 'budget-mini', `popup=yes,width=380,height=${getPopupStyle() === 'cat' ? 350 : 290}`);
     if (!win) toast('Allow pop-ups for this site to open the mini window.', true);
   },
   'edit-day'(id) { S.editDay = id; render(); const first = $('edit-date'); if (first) first.focus(); },
@@ -3819,6 +3956,7 @@ function handlePageClick(event) {
 function handlePageChange(event) {
   const input = event.target;
   if (input.id === 'set-theme') { setTheme(input.value); return; }
+  if (input.id === 'set-popup') { setPopupStyle(input.value); toast('Pop-up style saved. An open mini window changes the next time it updates.'); return; }
   if (input.id === 'due-pick') { S.duePick = Number(input.value); render(); return; }
   if (input.dataset.moonGoal) {
     const value = input.dataset.moonGoal === 'readType' ? input.value : Math.max(0, Number(input.value) || 0);
@@ -3867,7 +4005,10 @@ function handlePageChange(event) {
 /* ---------- Start ---------- */
 
 function start() {
-  if (MINI) document.body.dataset.mini = '1';
+  if (MINI) {
+    document.body.dataset.mini = '1';
+    window.addEventListener('storage', event => { if (event.key === 'budgetPopupStyle' && S.data) { S.miniPrev = null; render(); } });
+  }
   $('setup-form').addEventListener('submit', handleSetup);
   $('start-file').addEventListener('click', () => handleStart(true));
   $('start-empty').addEventListener('click', () => handleStart(false));
