@@ -771,7 +771,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.5.0';
+const APP_VERSION = '2.5.1';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -1513,13 +1513,13 @@ function render() {
   syncIncome();
   document.querySelectorAll('.tab').forEach(tab => {
     // The calculator page belongs to Settings, and a heading's page to Entries
-    const current = { calculator: 'settings', heading: 'entries', 'earn-days': 'earnings', 'earn-month': 'earnings' }[S.page] || S.page;
+    const current = { calculator: 'settings', heading: 'entries', 'earn-days': 'earnings', 'earn-month': 'earnings', 'earn-section': 'earnings' }[S.page] || S.page;
     if (tab.dataset.page === current) tab.setAttribute('aria-current', 'page');
     else tab.removeAttribute('aria-current');
   });
   $('page').dataset.page = S.page; // lets Home use the full width of large screens
   document.body.dataset.page = S.page;
-  ({ home: renderHome, earnings: renderEarnings, 'earn-days': renderEarnDays, 'earn-month': renderEarnMonth, entries: renderEntries, heading: renderHeading, settings: renderSettings, calculator: renderCalculator })[S.page]();
+  ({ home: renderHome, earnings: renderEarnings, 'earn-section': renderEarnings, 'earn-days': renderEarnDays, 'earn-month': renderEarnMonth, entries: renderEntries, heading: renderHeading, settings: renderSettings, calculator: renderCalculator })[S.page]();
   updateFooter();
 }
 
@@ -2077,19 +2077,58 @@ function renderEarnings() {
     if (aFuture !== bFuture) return aFuture ? -1 : 1;
     return aFuture ? a.key.localeCompare(b.key) : b.key.localeCompare(a.key);
   });
-  const payOpen = S.open.has('earn-pay');
   const thisMonth = m.log.filter(day => day.date.startsWith(monthKey(today)));
   const thisMonthAmount = thisMonth.reduce((t, day) => t + netOf(day), 0);
   const recent = m.log.map((day, at) => ({ day, at })).sort(byLatest).map(x => x.day).slice(0, 40);
   const editing = m.log.find(day => day.id === S.editDay);
   if (editing && !recent.includes(editing)) recent.push(editing);
-  // Work logged and Work types start closed; select the heading to open them
-  const logOpen = S.open.has('earn-log');
-  const typesOpen = S.open.has('earn-types') || !m.types.length;
-  const chev = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
-  const toggleHead = (id, title, sub, isOpen) => `<button class="card-head summary-toggle" data-action="toggle-group" data-id="${id}" aria-expanded="${isOpen}" aria-controls="${id}">
-      <span><span class="summary-title">${title}</span><span class="subtotals">${sub}</span></span>${chev}
-    </button>`;
+  // Money coming in, Work logged and Work types each open on their own page
+  const section = S.page === 'earn-section' ? S.earnSection : '';
+  const sections = {
+    pay: { title: 'Money coming in', sub: payRows.length
+      ? `Next: ${inr(payRows[0].amount)} in ${esc(monthLabel(payRows[0].key))} · this month's work so far ${inr(thisMonthAmount)}`
+      : 'Nothing logged yet' },
+    log: { title: 'Work logged', sub: `${m.log.length === 1 ? '1 entry' : `${m.log.length} entries`} · latest first` },
+    types: { title: 'Work types', sub: m.types.length ? `${m.types.length === 1 ? '1 type' : `${m.types.length} types`} · rates, pay delay and TDS` : 'Add a work type to start' }
+  };
+  const chevRight = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+
+  const bodies = {
+    pay: () => payRows.length ? `<ul class="earn-pay">${payRows.map(row => `<li>
+          <div class="earn-pay-head"><span>Paid in ${esc(monthLabel(row.key))}</span><strong>${inr(row.amount)}</strong></div>
+          ${row.tds > 0.5 ? `<div class="earn-pay-part muted"><span>After ${inr(row.tds)} TDS</span></div>` : ''}
+          ${[...row.parts.entries()].map(([type, part]) => `<div class="earn-pay-part"><span>${esc(typeName(type))} <span class="muted">· ${part.reads === 1 ? '1 read' : `${part.reads} reads`}, work in ${esc(monthLabel(part.work))}</span></span><span class="num">${inr(part.amount)}</span></div>`).join('')}
+        </li>`).join('')}</ul>` : '<p class="empty">No work logged yet.</p>',
+    log: () => recent.length ? `<ul class="earn-days" id="earn-log">${recent.map(day => day === editing ? editDayHtml(day) : `<li>
+          <span class="earn-day"><span>${esc(logLabel(day))}</span><span class="muted small">${esc(typeName(day.type))} · ${Number(day.reads) === 1 ? '1 read' : `${Number(day.reads) || 0} reads`}</span></span>
+          <span class="earn-amt"><strong class="num">${inr(netOf(day))}</strong>${Number(day.tds) ? `<span class="muted small">${inr(Number(day.amount) || 0)} less ${Number(day.tds)}% TDS</span>` : ''}</span>
+          <span class="earn-btns"><button type="button" class="btn" data-action="edit-day" data-id="${esc(day.id)}" aria-label="Edit ${esc(logLabel(day))}">Edit</button>
+          <button type="button" class="btn danger" data-action="delete-day" data-id="${esc(day.id)}" aria-label="Delete ${esc(logLabel(day))}">Delete</button></span>
+        </li>`).join('')}</ul>` : '<p class="empty">Work you add appears here.</p>',
+    types: () => `<div id="earn-types">
+      <div class="btn-row sec-actions"><button type="button" class="btn" data-action="add-work-type">Add type</button></div>
+      ${m.types.length ? `<table class="stack edit-table" data-list="work-types">
+        <thead><tr><th>Name</th><th>Pay</th><th>Pay per read (₹)</th><th>Paid after (months)</th><th>TDS deducted (%)</th><th><span hidden>Actions</span></th></tr></thead>
+        <tbody>${m.types.map(t => `<tr data-id="${esc(t.id)}">
+          <td data-label="Name"><input aria-label="Work type name" data-wt="name" value="${esc(t.name)}"></td>
+          <td data-label="Pay"><select aria-label="How it pays" data-wt="fixed"><option value="1"${t.fixed ? ' selected' : ''}>Fixed per read</option><option value="0"${t.fixed ? '' : ' selected'}>Ask each time</option></select></td>
+          <td data-label="Pay per read (₹)">${t.fixed ? `<input aria-label="Pay per read" data-wt="rate" type="number" inputmode="decimal" min="0" step="any" value="${esc(t.rate ?? '')}">` : '<span class="muted small">Asked when adding</span>'}</td>
+          <td data-label="Paid after (months)"><input aria-label="Paid after months" data-wt="delay" type="number" inputmode="numeric" min="0" max="12" step="1" value="${esc(t.delay ?? 1)}"></td>
+          <td data-label="TDS deducted (%)"><input aria-label="TDS deducted percent" data-wt="tds" type="number" inputmode="decimal" min="0" max="100" step="any" placeholder="0" value="${esc(t.tds || '')}"></td>
+          <td class="actions"><button type="button" class="btn danger" data-action="delete-work-type" data-id="${esc(t.id)}" aria-label="Delete ${esc(t.name)}">Delete</button></td>
+        </tr>`).join('')}</tbody>
+      </table>` : '<p class="empty">Add a work type to start, for example one paid a fixed amount per read, or one where you enter the pay each time.</p>'}
+      <p class="small muted" style="margin:0;padding:10px 16px 14px">TDS is taken off the bill before it is paid, so expected income shows the amount after TDS. Changing a rate, delay or TDS affects new work only; work already logged keeps its amount, pay month and TDS.</p>
+      </div>`
+  };
+  if (section && sections[section]) {
+    $('page').innerHTML = `
+      <button type="button" class="btn link back-link" data-action="close-earn-section">‹ Back to Moonlights</button>
+      <div class="page-head"><div><h2>${sections[section].title}</h2><div class="page-sub">${sections[section].sub}</div></div></div>
+      <div class="card">${bodies[section]()}</div>`;
+    if (section === 'log' && editing) wireEditDay(editing);
+    return;
+  }
 
   $('page').innerHTML = `
     <div class="page-head"><div><h2>Moonlights</h2><div class="page-sub">Moonlighting work and when it is paid</div></div></div>
@@ -2119,41 +2158,9 @@ function renderEarnings() {
       }).join('')}</ul>
     </div>` : ''}
     <div class="card">
-      ${toggleHead('earn-pay', 'Money coming in', payRows.length
-        ? `Next: ${inr(payRows[0].amount)} in ${esc(monthLabel(payRows[0].key))} · this month's work so far ${inr(thisMonthAmount)}`
-        : 'Nothing logged yet', payOpen)}
-      ${!payOpen ? '' : payRows.length ? `<ul class="earn-pay" id="earn-pay">${payRows.map(row => `<li>
-          <div class="earn-pay-head"><span>Paid in ${esc(monthLabel(row.key))}</span><strong>${inr(row.amount)}</strong></div>
-          ${row.tds > 0.5 ? `<div class="earn-pay-part muted"><span>After ${inr(row.tds)} TDS</span></div>` : ''}
-          ${[...row.parts.entries()].map(([type, part]) => `<div class="earn-pay-part"><span>${esc(typeName(type))} <span class="muted">· ${part.reads === 1 ? '1 read' : `${part.reads} reads`}, work in ${esc(monthLabel(part.work))}</span></span><span class="num">${inr(part.amount)}</span></div>`).join('')}
-        </li>`).join('')}</ul>` : '<p class="empty" id="earn-pay">No work logged yet.</p>'}
-    </div>
-    <div class="card">
-      ${toggleHead('earn-log', 'Work logged', `${m.log.length === 1 ? '1 entry' : `${m.log.length} entries`} · latest first`, logOpen)}
-      ${!logOpen ? '' : recent.length ? `<ul class="earn-days" id="earn-log">${recent.map(day => day === editing ? editDayHtml(day) : `<li>
-          <span class="earn-day"><span>${esc(logLabel(day))}</span><span class="muted small">${esc(typeName(day.type))} · ${Number(day.reads) === 1 ? '1 read' : `${Number(day.reads) || 0} reads`}</span></span>
-          <span class="earn-amt"><strong class="num">${inr(netOf(day))}</strong>${Number(day.tds) ? `<span class="muted small">${inr(Number(day.amount) || 0)} less ${Number(day.tds)}% TDS</span>` : ''}</span>
-          <span class="earn-btns"><button type="button" class="btn" data-action="edit-day" data-id="${esc(day.id)}" aria-label="Edit ${esc(logLabel(day))}">Edit</button>
-          <button type="button" class="btn danger" data-action="delete-day" data-id="${esc(day.id)}" aria-label="Delete ${esc(logLabel(day))}">Delete</button></span>
-        </li>`).join('')}</ul>` : '<p class="empty" id="earn-log">Work you add appears here.</p>'}
-    </div>
-    <div class="card">
-      ${toggleHead('earn-types', 'Work types', `${m.types.length === 1 ? '1 type' : `${m.types.length} types`} · rates, pay delay and TDS`, typesOpen)}
-      ${!typesOpen ? '' : `<div id="earn-types">
-      <div class="btn-row sec-actions"><button type="button" class="btn" data-action="add-work-type">Add type</button></div>
-      ${m.types.length ? `<table class="stack edit-table" data-list="work-types">
-        <thead><tr><th>Name</th><th>Pay</th><th>Pay per read (₹)</th><th>Paid after (months)</th><th>TDS deducted (%)</th><th><span hidden>Actions</span></th></tr></thead>
-        <tbody>${m.types.map(t => `<tr data-id="${esc(t.id)}">
-          <td data-label="Name"><input aria-label="Work type name" data-wt="name" value="${esc(t.name)}"></td>
-          <td data-label="Pay"><select aria-label="How it pays" data-wt="fixed"><option value="1"${t.fixed ? ' selected' : ''}>Fixed per read</option><option value="0"${t.fixed ? '' : ' selected'}>Ask each time</option></select></td>
-          <td data-label="Pay per read (₹)">${t.fixed ? `<input aria-label="Pay per read" data-wt="rate" type="number" inputmode="decimal" min="0" step="any" value="${esc(t.rate ?? '')}">` : '<span class="muted small">Asked when adding</span>'}</td>
-          <td data-label="Paid after (months)"><input aria-label="Paid after months" data-wt="delay" type="number" inputmode="numeric" min="0" max="12" step="1" value="${esc(t.delay ?? 1)}"></td>
-          <td data-label="TDS deducted (%)"><input aria-label="TDS deducted percent" data-wt="tds" type="number" inputmode="decimal" min="0" max="100" step="any" placeholder="0" value="${esc(t.tds || '')}"></td>
-          <td class="actions"><button type="button" class="btn danger" data-action="delete-work-type" data-id="${esc(t.id)}" aria-label="Delete ${esc(t.name)}">Delete</button></td>
-        </tr>`).join('')}</tbody>
-      </table>` : '<p class="empty">Add a work type to start, for example one paid a fixed amount per read, or one where you enter the pay each time.</p>'}
-      <p class="small muted" style="margin:0;padding:10px 16px 14px">TDS is taken off the bill before it is paid, so expected income shows the amount after TDS. Changing a rate, delay or TDS affects new work only; work already logged keeps its amount, pay month and TDS.</p>
-      </div>`}
+      <ul class="type-list">${Object.entries(sections).map(([id, sec]) => `<li><button class="type-row" data-action="open-earn-section" data-id="${id}">
+          <span class="type-main"><span class="type-name">${sec.title}</span><span class="muted small">${sec.sub}</span></span>${chevRight}
+        </button></li>`).join('')}</ul>
     </div>`;
   if (!m.types.length) return;
   moonAnimate();
@@ -2161,7 +2168,6 @@ function renderEarnings() {
   const keepDate = () => { if (S.earnWhole) S.earnPickMonth = $('earn-date').value; else S.earnDate = $('earn-date').value; };
   $('earn-type').addEventListener('change', () => { S.earnType = $('earn-type').value; keepDate(); render(); });
   $('earn-span').addEventListener('change', () => { keepDate(); S.earnWhole = $('earn-span').value === 'month'; render(); });
-  if (editing) wireEditDay(editing);
   const preview = () => {
     const t = typeOf($('earn-type').value);
     const reads = Number($('earn-reads').value) || 0;
@@ -3368,6 +3374,8 @@ const actions = {
   'open-earn-month'(key) { S.earnMonth = key; go('earn-month'); },
   'close-earn-month'() { go('earn-days'); },
   'close-earn-days'() { go('earnings'); },
+  'open-earn-section'(id) { S.earnSection = id; S.editDay = null; go('earn-section'); },
+  'close-earn-section'() { go('earnings'); },
   'open-heading'(id) { S.heading = id; go('heading'); },
   'close-heading'() { go('entries'); },
   'close-calculator'() { go('settings'); },
