@@ -410,6 +410,14 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .mh-fill { transition: width 1.1s cubic-bezier(.2, .8, .2, 1); }
 .mh-mark.pop { animation: mhPop .5s cubic-bezier(.3, 1.6, .5, 1) both; animation-delay: var(--d); }
 .mh-add { display: flex; gap: 4px; }
+.moon-home { position: relative; }
+.mh-coin { position: absolute; z-index: 2; width: 14px; height: 14px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle at 35% 35%, #FFE08A, #D08A1D); box-shadow: 0 0 0 1px #B7791F inset;
+  animation: mhCoin .8s cubic-bezier(.5, 0, .5, 1) both; }
+@keyframes mhCoin { from { transform: translate(0, 0) scale(1); opacity: 1; } to { transform: translate(var(--tx), var(--ty)) scale(.5); opacity: .2; } }
+.mh-plus { position: absolute; z-index: 2; font-weight: 800; font-size: .95rem; color: var(--good); pointer-events: none; white-space: nowrap; animation: mhPlus 1.3s ease-out both; }
+@keyframes mhPlus { from { opacity: 0; transform: translateY(8px) scale(.8); } 15% { opacity: 1; transform: translateY(0) scale(1.1); } to { opacity: 0; transform: translateY(-34px); } }
+.mh-fill.glow { box-shadow: 0 0 10px var(--seg-left); }
 .mh-add input { width: 62px; min-height: 28px; padding: 2px 5px; font-size: .8rem; font-weight: 500; border: 1px solid var(--field-line); border-radius: 7px; background: var(--field); }
 .mh-add input { -moz-appearance: textfield; appearance: textfield; }
 .mh-add input::-webkit-inner-spin-button, .mh-add input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
@@ -420,7 +428,7 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .mh-ticker span { position: absolute; left: 0; right: 0; top: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transform: translateY(100%); transition: opacity .4s, transform .4s; }
 .mh-ticker span.on { opacity: 1; transform: none; }
 .mh-ticker span.off { transform: translateY(-100%); }
-@media (prefers-reduced-motion: reduce) { .mh-fill, .mh-mark, .mh-ticker span { animation: none !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { .mh-fill, .mh-mark, .mh-ticker span, .mh-coin, .mh-plus { animation: none !important; transition: none !important; } }
 @media (max-width: 640px) {
   .mh-grid { grid-template-columns: 1fr; }
   .mh-cell + .mh-cell { border-left: 0; border-top: 1px solid var(--line); }
@@ -771,7 +779,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.5.1';
+const APP_VERSION = '2.5.2';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -1861,6 +1869,34 @@ function moonHomeAfter() {
   }
   const form = $('mh-add');
   if (form) form.addEventListener('submit', handleQuickReads);
+  // Just added reads: coins fly from Add into the bar and the amount floats up
+  const gain = S.mhGain;
+  S.mhGain = 0;
+  const fill = box.querySelector('.mh-fill');
+  const button = form && form.querySelector('.btn');
+  if (!gain || still || !fill || !button) return;
+  const home = box.getBoundingClientRect();
+  const from = button.getBoundingClientRect();
+  const track = fill.parentElement.getBoundingClientRect();
+  const startX = from.left - home.left + from.width / 2 - 7, startY = from.top - home.top + from.height / 2 - 7;
+  const endX = track.left - home.left + track.width * Math.min(1, Number(fill.dataset.w) / 100) - 7, endY = track.top - home.top + track.height / 2 - 7;
+  for (let i = 0; i < 6; i++) {
+    const coin = document.createElement('span');
+    coin.className = 'mh-coin';
+    coin.setAttribute('aria-hidden', 'true');
+    coin.style.cssText = `left:${startX}px;top:${startY}px;--tx:${endX - startX}px;--ty:${endY - startY}px;animation-delay:${i * 70}ms`;
+    box.appendChild(coin);
+    coin.addEventListener('animationend', () => coin.remove());
+  }
+  const plus = document.createElement('span');
+  plus.className = 'mh-plus';
+  plus.setAttribute('aria-hidden', 'true');
+  plus.textContent = `+${inr(gain)}`;
+  plus.style.cssText = `left:${Math.max(8, Math.min(endX + 12, track.right - home.left - 70))}px;top:${endY - 26}px`;
+  box.appendChild(plus);
+  plus.addEventListener('animationend', () => plus.remove());
+  fill.classList.add('glow');
+  setTimeout(() => fill.classList.remove('glow'), 1400);
 }
 
 // Home quick add: reads done just now, for today, in the type the daily target is counted in.
@@ -1880,6 +1916,7 @@ function handleQuickReads(event) {
     ? m.log.map(day => (day === existing ? { ...day, reads: (Number(day.reads) || 0) + reads, amount: (Number(day.amount) || 0) + reads * rate } : day))
     : [...m.log, { id: newId('day'), date, type: type.id, reads, amount: reads * rate, delay: Number(type.delay) || 0, tds }];
   setMoon({ log });
+  S.mhGain = afterTds(reads * rate, tds);
   const total = log.find(day => day.date === date && day.type === type.id && !day.whole && (Number(day.tds) || 0) === tds).reads;
   render();
   changed();
