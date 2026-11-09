@@ -466,6 +466,9 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .mh-coin.cat-coin { animation: catDrop .65s cubic-bezier(.5, 0, .9, .6) both; }
 @keyframes catDrop { 0% { opacity: 0; transform: translateY(-4px) rotateY(0) scale(.8); } 15% { opacity: 1; } 85% { opacity: 1; transform: translateY(var(--fall)) rotateY(540deg) scale(1); }
   100% { opacity: 0; transform: translateY(var(--fall)) rotateY(600deg) scale(.6); } }
+.pip-hours { margin-top: 8px; max-height: 92px; overflow-y: auto; border-top: 1px solid var(--line); padding-top: 6px; font-size: .78rem; font-variant-numeric: tabular-nums; }
+.pip-hour { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 6px; padding: 1px 0; }
+.pip-hour-label { color: var(--muted); white-space: nowrap; }
 .pip-speed { margin-top: 4px; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .pip-speed strong { color: var(--text); }
 .pip-version { position: absolute; right: 14px; bottom: -16px; font-size: .65rem; color: var(--muted); }
@@ -890,7 +893,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.16.1';
+const APP_VERSION = '2.17.0';
 // Mini window: opened as index.html?mini, it shows only Today's target, in its own window,
 // so it stays open whatever happens to the main app's tab
 const MINI = new URLSearchParams(location.search).has('mini');
@@ -2001,7 +2004,7 @@ function moonHomeHtml() {
 async function popOutToday() {
   if (S.pipWin && !S.pipWin.closed) { S.pipWin.focus(); return; }
   try {
-    const win = await window.documentPictureInPicture.requestWindow({ width: 340, height: getPopupStyle() === 'cat' ? 290 : 220 });
+    const win = await window.documentPictureInPicture.requestWindow({ width: 340, height: getPopupStyle() === 'cat' ? 370 : 300 });
     for (const style of document.querySelectorAll('style')) win.document.head.appendChild(style.cloneNode(true));
     if (document.documentElement.dataset.theme) win.document.documentElement.dataset.theme = document.documentElement.dataset.theme;
     win.document.title = "Today's target";
@@ -2037,23 +2040,63 @@ function setPopupStyle(v) {
   try { localStorage.setItem('budgetPopupStyle', v); } catch {}
   if (S.pipWin) { S.pipPrev = null; renderPip(); }
 }
-function readSpeed(m, readType) {
+function todayStamps(m, readType) {
   const todayKey = dateKey(workDate());
-  const stamps = m.log.filter(day => day.date === todayKey && !day.whole && (!readType || day.type === readType.id))
+  return m.log.filter(day => day.date === todayKey && !day.whole && (!readType || day.type === readType.id))
     .flatMap(day => day.stamps || []).filter(x => Array.isArray(x) && x.length === 2).sort((a, b) => a[0] - b[0]);
+}
+
+function readSpeed(m, readType) {
+  const stamps = todayStamps(m, readType);
   if (stamps.length < 2) return null;
   let first = stamps.length - 1;
   while (first > 0 && stamps[first][0] - stamps[first - 1][0] < SITTING_GAP) first--;
   const sitting = stamps.slice(first);
-  const hours = (sitting[sitting.length - 1][0] - sitting[0][0]) / 3600000;
-  if (sitting.length < 2 || hours < 1 / 60) return null;
+  const last = sitting[sitting.length - 1][0];
+  const stale = Date.now() - last > SITTING_GAP;
+  // Live: up to now while still reading (it eases down during a pause); up to the last add after a long break
+  const hours = ((stale ? last : Math.max(last, Date.now())) - sitting[0][0]) / 3600000;
+  if (sitting.length < 2 || (last - sitting[0][0]) < 60000) return null;
   const reads = sitting.slice(1).reduce((t, x) => t + (Number(x[1]) || 0), 0);
-  return { perHour: reads / hours, stale: Date.now() - sitting[sitting.length - 1][0] > SITTING_GAP };
+  return { perHour: reads / hours, stale };
 }
+// "9–10 pm", "11 am–12 pm"
+const hourRange = h => {
+  const label = x => ({ n: x % 12 || 12, p: x % 24 < 12 ? 'am' : 'pm' });
+  const a = label(h), b = label(h + 1);
+  return a.p === b.p ? `${a.n}–${b.n} ${b.p}` : `${a.n} ${a.p}–${b.n} ${b.p}`;
+};
+function hourlyHtml(m, readType) {
+  const byHour = new Map();
+  for (const [time, reads] of todayStamps(m, readType)) {
+    const start = new Date(time);
+    start.setMinutes(0, 0, 0);
+    byHour.set(start.getTime(), (byHour.get(start.getTime()) || 0) + (Number(reads) || 0));
+  }
+  if (!byHour.size) return '';
+  return `<div class="pip-hours" aria-label="Reads by hour today">${[...byHour].sort((a, b) => a[0] - b[0]).map(([start, reads]) =>
+    `<div class="pip-hour"><span class="pip-hour-label">${hourRange(new Date(start).getHours())}</span><span>– <strong>${readsText(reads)}</strong></span></div>`).join('')}</div>`;
+}
+
 const hoursText = h => {
   const mins = Math.max(1, Math.round(h * 60));
   return mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h${mins % 60 ? ` ${mins % 60}m` : ''}`;
 };
+
+function speedLineHtml() {
+  const m = moon();
+  const { s, goal, target, readType, readsFor, targetReads } = moonPlan(m, workDate());
+  const speed = readSpeed(m, readType);
+  if (!speed) return '⚡ Speed shows after a few adds';
+  const left = goal && s.todayNet < target && targetReads ? readsFor(target - s.todayNet) : 0;
+  return `⚡ <strong>${Math.round(speed.perHour).toLocaleString('en-IN')} reads/hr</strong>${left && !speed.stale ? ` · target in about ${hoursText(left / speed.perHour)}` : ''}`;
+}
+// Refresh just the speed line in the floating and mini windows every minute
+setInterval(() => {
+  if (!S.data) return;
+  const roots = [S.pipWin && !S.pipWin.closed && S.pipWin.document.getElementById('pip-root'), MINI && document.getElementById('mini-root')].filter(Boolean);
+  for (const root of roots) { const line = root.querySelector('.pip-speed'); if (line) line.innerHTML = speedLineHtml(); }
+}, 60000);
 
 function renderPip() {
   const win = S.pipWin;
@@ -2078,17 +2121,13 @@ function renderTodayBox(win, root, prevKey) {
   const note = !goal ? 'Set a monthly goal in Moonlights'
     : reached ? `Today's target reached ✓ · ${xray.toLocaleString('en-IN')} ${readType ? `${esc(readType.name)} ` : ''}reads today`
     : targetReads ? `${xray.toLocaleString('en-IN')} ${readType ? `${esc(readType.name)} ` : ''}reads done · ${readsFor(target - s.todayNet).toLocaleString('en-IN')} more to reach today's target` : `${inr(target - s.todayNet)} to go today`;
-  const speedHtml = (() => {
-    const speed = readSpeed(m, readType);
-    if (!speed) return '⚡ Speed shows after a few adds';
-    const left = goal && !reached && targetReads ? readsFor(target - s.todayNet) : 0;
-    return `⚡ ${speed.stale ? 'Last sitting ' : ''}<strong>${Math.round(speed.perHour).toLocaleString('en-IN')} reads/hr</strong>${left && !speed.stale ? ` · target in about ${hoursText(left / speed.perHour)}` : ''}`;
-  })();
+  const speedHtml = speedLineHtml();
   const head = `<div class="mh-label mh-label-row"><span>Today's target</span><span class="mh-sets${sets >= READ_SETS_IDEAL ? ' done' : ''}${sets > prev.sets ? ' pop' : ''}">${sets}/${READ_SETS_IDEAL} sets</span></div>`;
   const value = `<div class="mh-value"><span class="pip-net">${inr(prev.net)}</span>${goal ? ` <span class="muted">of ${inr(target)}</span>` : ''}</div>`;
   const foot = `<span class="pip-version">v${esc(APP_VERSION)}</span>
       ${MINI ? '<a class="mini-full" href="./" target="_blank" rel="noopener">Open full app ↗</a>' : ''}
-      ${readType ? `<form class="mh-add pip-add" novalidate><input type="number" inputmode="numeric" min="1" step="1" placeholder="${esc(readType.name)} reads" aria-label="${esc(readType.name)} reads done now"><button class="btn primary">Add</button></form>` : ''}`;
+      ${readType ? `<form class="mh-add pip-add" novalidate><input type="number" inputmode="numeric" min="1" step="1" placeholder="${esc(readType.name)} reads" aria-label="${esc(readType.name)} reads done now"><button class="btn primary">Add</button></form>` : ''}
+      ${hourlyHtml(m, readType)}`;
   const catStyle = getPopupStyle() === 'cat';
   root.innerHTML = catStyle
     ? `<div class="pip-card pip-cat">
@@ -3842,7 +3881,7 @@ const actions = {
   'open-moonlights'() { go('earnings'); },
   'pop-out-today'() { popOutToday(); },
   'open-mini'() {
-    const win = window.open('./?mini', 'budget-mini', `popup=yes,width=380,height=${getPopupStyle() === 'cat' ? 350 : 290}`);
+    const win = window.open('./?mini', 'budget-mini', `popup=yes,width=380,height=${getPopupStyle() === 'cat' ? 430 : 370}`);
     if (!win) toast('Allow pop-ups for this site to open the mini window.', true);
   },
   'edit-day'(id) { S.editDay = id; render(); const first = $('edit-date'); if (first) first.focus(); },
