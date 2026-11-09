@@ -428,6 +428,7 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .pip-card .mh-value { font-size: 1.25rem; margin-top: 2px; }
 .pip-card .mh-track { height: 8px; }
 .pip-add { margin-top: 10px; }
+.pip-version { position: absolute; right: 14px; bottom: -16px; font-size: .65rem; color: var(--muted); }
 .pip-add input { flex: 1; width: auto; min-height: 34px; font-size: .9rem; }
 .pip-add .btn { min-height: 34px; padding: 4px 14px; font-size: .9rem; }
 .mh-pop { font-size: .75rem; }
@@ -814,7 +815,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.12.2';
+const APP_VERSION = '2.12.3';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -1953,6 +1954,7 @@ function renderPip() {
       <div class="mh-value"><span id="pip-net">${inr(prev.net)}</span>${goal ? ` <span class="muted">of ${inr(target)}</span>` : ''}</div>
       ${goal ? `<div class="mh-track"><span class="mh-fill${reached ? ' done' : ''}" style="width:${(prev.part * 100).toFixed(1)}%"></span></div>` : ''}
       <div class="mh-note">${note}</div>
+      <span class="pip-version">v${esc(APP_VERSION)}</span>
       ${readType ? `<form class="mh-add pip-add" novalidate><input type="number" inputmode="numeric" min="1" step="1" placeholder="${esc(readType.name)} reads" aria-label="${esc(readType.name)} reads done now"><button class="btn primary">Add</button></form>` : ''}
     </div>`;
   const form = root.querySelector('form');
@@ -1964,7 +1966,8 @@ function renderPip() {
   // Just added reads: coins fly from Add into the bar and the amount floats up, as on Home
   const gain = S.mhGain;
   const button = form && form.querySelector('.btn');
-  if (gain && !still && fill && button) {
+  if (gain && !still && fill && button) win.requestAnimationFrame(() => {
+    if (!fill.isConnected) return;
     const box = root.querySelector('.pip-card').getBoundingClientRect();
     const from = button.getBoundingClientRect();
     const track = fill.parentElement.getBoundingClientRect();
@@ -1986,12 +1989,12 @@ function renderPip() {
     plus.addEventListener('animationend', () => plus.remove());
     fill.classList.add('glow');
     win.setTimeout(() => fill.classList.remove('glow'), 1400);
-  }
+  });
   if (still || prev.net === s.todayNet) { net.textContent = inr(s.todayNet); return; }
-  // Time with the small window's own clock: its frame times do not match the main page's
-  const startAt = win.performance.now();
+  // Time with the wall clock: the two windows give different frame times
+  const startAt = Date.now();
   const step = time => {
-    const t = Math.max(0, Math.min(1, (time - startAt) / 900));
+    const t = Math.max(0, Math.min(1, (Date.now() - startAt) / 900));
     net.textContent = inr(prev.net + (s.todayNet - prev.net) * (1 - Math.pow(1 - t, 3)));
     if (t < 1) win.requestAnimationFrame(step);
   };
@@ -2009,9 +2012,9 @@ function moonHomeAfter() {
   for (const el of box.querySelectorAll('.mh-num')) {
     const a = Number(el.dataset.from), b = Number(el.dataset.to);
     if (a === b || still) { el.textContent = inr(b); continue; }
-    const startAt = performance.now();
+    const startAt = Date.now();
     const step = time => {
-      const p = Math.max(0, Math.min(1, (time - startAt) / 1100));
+      const p = Math.max(0, Math.min(1, (Date.now() - startAt) / 1100));
       el.textContent = inr(a + (b - a) * (1 - Math.pow(1 - p, 3)));
       if (p < 1) requestAnimationFrame(step);
     };
@@ -2159,9 +2162,9 @@ function moonAnimate() {
   for (const el of document.querySelectorAll('#moon-card [data-count]')) {
     const to = Number(el.dataset.count);
     const show = n => { el.textContent = el.dataset.money ? inr(n) : Math.round(n).toLocaleString('en-IN'); };
-    const startAt = performance.now();
+    const startAt = Date.now();
     const step = time => {
-      const p = Math.min(1, (time - startAt) / 1200);
+      const p = Math.max(0, Math.min(1, (Date.now() - startAt) / 1200));
       show(to * (1 - Math.pow(1 - p, 3)));
       if (p < 1) requestAnimationFrame(step);
     };
