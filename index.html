@@ -896,7 +896,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.17.5';
+const APP_VERSION = '2.17.6';
 // Mini window: opened as index.html?mini, it shows only Today's target, in its own window,
 // so it stays open whatever happens to the main app's tab
 const MINI = new URLSearchParams(location.search).has('mini');
@@ -2030,7 +2030,14 @@ const dayEndHour = () => {
   return Number.isInteger(h) && h >= 0 && h <= 8 ? h : DAY_END_DEFAULT;
 };
 const hourText = h => `${h % 12 || 12} ${h < 12 ? 'am' : 'pm'}`;
-const workDate = () => new Date(Date.now() - dayEndHour() * 3600000);
+// Moonlights always runs on Indian time, whatever the device's time zone: istDate gives a Date whose
+// year, month, day and hour read as the time in India at that moment
+const IST_PARTS = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+function istDate(ms = Date.now()) {
+  const p = Object.fromEntries(IST_PARTS.formatToParts(new Date(ms)).map(x => [x.type, x.value]));
+  return new Date(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute), Number(p.second));
+}
+const workDate = () => { const d = istDate(); d.setHours(d.getHours() - dayEndHour()); return d; };
 
 // Reading speed from today's adds of the daily-target type. A sitting is the run of adds with gaps
 // under 45 minutes, ending at the latest add. The first add's reads were done before it was entered,
@@ -2077,7 +2084,7 @@ const hourRange = h => {
 function hourlyHtml(m, readType) {
   const byHour = new Map();
   for (const [time, reads] of todayStamps(m, readType)) {
-    const start = new Date(time);
+    const start = istDate(time);   // hours in Indian time
     start.setMinutes(0, 0, 0);
     byHour.set(start.getTime(), (byHour.get(start.getTime()) || 0) + (Number(reads) || 0));
   }
