@@ -1,6 +1,6 @@
 // Serves the app network-first and falls back to the cache when offline.
 // Only same-origin requests are handled, so GitHub API calls are never cached.
-const CACHE_NAME = 'budget-planner-v2.19.2';
+const CACHE_NAME = 'budget-planner-v2.19.3';
 const APP_FILES = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', event => {
@@ -19,7 +19,9 @@ self.addEventListener('fetch', event => {
   const request = event.request;
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
   event.respondWith(
-    fetch(request)
+    // Always ask the server for the newest copy (no-cache), so an update shows on the first reopen
+    // instead of waiting out the browser's cache; offline, the saved copy below is used
+    fetch(new Request(request.url, { cache: 'no-cache', credentials: 'same-origin' }))
       .then(response => {
         if (response.ok) {
           const copy = response.clone();
