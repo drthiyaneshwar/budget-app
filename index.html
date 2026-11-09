@@ -890,7 +890,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.16.0';
+const APP_VERSION = '2.16.1';
 // Mini window: opened as index.html?mini, it shows only Today's target, in its own window,
 // so it stays open whatever happens to the main app's tab
 const MINI = new URLSearchParams(location.search).has('mini');
@@ -1936,13 +1936,13 @@ setInterval(() => {
 function moonHomeHtml() {
   const m = moon();
   if (!m.types.length) return '';
-  const { s, goal, target, readType, perRead, targetReads, readsFor, goalPart, daysLeft, forecast, monthEnd } = moonPlan(m, new Date());
+  const { s, goal, target, readType, perRead, targetReads, readsFor, goalPart, daysLeft, forecast, monthEnd } = moonPlan(m, workDate());
   const todayPart = goal ? (target ? Math.min(1, s.todayNet / target) : 1) : 0;
   // Bars and figures move from where they were (or from zero when Home opens) to where they are now
   const now = { todayPart, goalPart, todayNet: s.todayNet, monthNet: s.monthNet, forecast };
   // Reads on Home are only those of the daily-target work type (money still counts every type).
   // Its reads by day give today's reads, the sets of 5, the best day this month and the streak.
-  const todayKey = dateKey(new Date());
+  const todayKey = dateKey(workDate());
   const typeReads = new Map();
   for (const day of m.log) {
     if (day.whole || (readType && day.type !== readType.id)) continue;
@@ -2016,6 +2016,11 @@ async function popOutToday() {
   }
 }
 
+// A Moonlights work day runs from morning until 4 am the next day, so reads added after midnight
+// still count for the day before. Every Moonlights "today" uses this date; pay months do not.
+const WORK_DAY_ENDS_AT = 4;
+const workDate = () => new Date(Date.now() - WORK_DAY_ENDS_AT * 3600000);
+
 // Reading speed from today's adds of the daily-target type. A sitting is the run of adds with gaps
 // under 45 minutes, ending at the latest add. The first add's reads were done before it was entered,
 // so speed = reads added after the first add ÷ time from the first add to the last.
@@ -2033,7 +2038,7 @@ function setPopupStyle(v) {
   if (S.pipWin) { S.pipPrev = null; renderPip(); }
 }
 function readSpeed(m, readType) {
-  const todayKey = dateKey(new Date());
+  const todayKey = dateKey(workDate());
   const stamps = m.log.filter(day => day.date === todayKey && !day.whole && (!readType || day.type === readType.id))
     .flatMap(day => day.stamps || []).filter(x => Array.isArray(x) && x.length === 2).sort((a, b) => a[0] - b[0]);
   if (stamps.length < 2) return null;
@@ -2062,8 +2067,8 @@ function renderTodayBox(win, root, prevKey) {
   const doc = win.document;
   if (!root || !S.data) return;
   const m = moon();
-  const { s, goal, target, readType, readsFor, targetReads } = moonPlan(m, new Date());
-  const todayKey = dateKey(new Date());
+  const { s, goal, target, readType, readsFor, targetReads } = moonPlan(m, workDate());
+  const todayKey = dateKey(workDate());
   const xray = m.log.reduce((t, day) => t + (day.date === todayKey && !day.whole && (!readType || day.type === readType.id) ? Number(day.reads) || 0 : 0), 0);
   const sets = Math.floor(xray / READ_SET);
   const part = goal ? (target ? Math.min(1, s.todayNet / target) : 1) : 0;
@@ -2301,9 +2306,9 @@ function addQuickReads(input) {
   const reads = Number(input.value);
   if (!Number.isInteger(reads) || reads <= 0) { input.focus(); toast('Enter the number of reads.'); return; }
   const m = moon();
-  const { readType: type } = moonPlan(m, new Date());
+  const { readType: type } = moonPlan(m, workDate());
   if (!type) return;
-  const date = dateKey(new Date());
+  const date = dateKey(workDate());
   const rate = Number(type.rate) || 0;
   const tds = Number(type.tds) || 0;
   const existing = m.log.find(day => day.date === date && day.type === type.id && !day.whole && (Number(day.tds) || 0) === tds);
@@ -2415,7 +2420,7 @@ function moonAnimate() {
 
 // Work logged: change one entry in place. The pay month follows the new date; TDS and pay delay stay as logged.
 function editDayHtml(day) {
-  const today = new Date();
+  const today = workDate();
   return `<li class="earn-edit"><form id="edit-day-form" novalidate>
     <div class="earn-edit-title">Edit ${esc(logLabel(day))} <span class="muted small">· ${esc((typeOf(day.type) || {}).name || 'Deleted type')}</span></div>
     <div class="earn-edit-fields">
@@ -2440,7 +2445,7 @@ function wireEditDay(day) {
     const input = $('edit-date');
     const was = input.value;
     whole = $('edit-span').value === 'month';
-    const today = new Date();
+    const today = workDate();
     input.type = whole ? 'month' : 'date';
     input.max = whole ? monthKey(today) : dateKey(today);
     input.value = !was ? '' : whole ? was.slice(0, 7) : `${was.slice(0, 7)}-01`;
@@ -2487,7 +2492,7 @@ function wireEditDay(day) {
 
 function renderEarnings() {
   const m = moon();
-  const today = new Date();
+  const today = workDate();
   const todayKey = `${monthKey(today)}-${String(today.getDate()).padStart(2, '0')}`;
   const chosen = typeOf(S.earnType) || m.types[0];
   const typeName = id => (typeOf(id) || {}).name || 'Deleted type';
