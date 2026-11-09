@@ -896,7 +896,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.18.0';
+const APP_VERSION = '2.18.2';
 // Mini window: opened as index.html?mini, it shows only Today's target, in its own window,
 // so it stays open whatever happens to the main app's tab
 const MINI = new URLSearchParams(location.search).has('mini');
@@ -1253,7 +1253,27 @@ function mergeData(base, local, remote) {
     moon: (local.moon || remote.moon) ? {
       ...(remote.moon || {}), ...(local.moon || {}),
       types: mergeList(base && base.moon && base.moon.types, (local.moon || {}).types, (remote.moon || {}).types),
-      log: mergeList(base && base.moon && base.moon.log, (local.moon || {}).log, (remote.moon || {}).log)
+      log: (() => {
+        const baseLog = base && base.moon && base.moon.log;
+        const merged = mergeList(baseLog, (local.moon || {}).log, (remote.moon || {}).log);
+        if (!merged) return merged;
+        // Reads added on either device since the last sync are all kept: an add (time and reads) that is
+        // on one side, was not there at the last sync, and did not survive the line-by-line merge is added back
+        const key = x => `${x[0]}:${x[1]}`;
+        const stampsOf = log => (log || []).flatMap(day => (day.stamps || []).filter(x => Array.isArray(x) && x.length === 2).map(x => ({ x, day })));
+        const known = new Set([...stampsOf(baseLog), ...stampsOf(merged)].map(({ x }) => key(x)));
+        const extra = [];
+        for (const { x, day } of [...stampsOf((local.moon || {}).log), ...stampsOf((remote.moon || {}).log)]) {
+          if (known.has(key(x))) continue;
+          known.add(key(x));
+          const perRead = (Number(day.reads) || 0) ? (Number(day.amount) || 0) / Number(day.reads) : 0;
+          const n = Number(x[1]) || 0;
+          extra.push({ ...day, id: `${day.id}#${x[0]}`, reads: n, amount: n * perRead, stamps: [x] });
+        }
+        const goals = { ...((remote.moon || {}).goals || {}), ...((local.moon || {}).goals || {}) };
+        const hour = goals.dayEnds !== undefined && Number.isInteger(Number(goals.dayEnds)) ? Number(goals.dayEnds) : DAY_END_DEFAULT;
+        return rebucketMoonLog([...merged, ...extra], hour);
+      })()
     } : undefined
   };
 }
@@ -2058,18 +2078,23 @@ function rebucketMoonLog(log, hour) {
       row.stamps = [...(row.stamps || []), ...stamps].sort((a, b) => a[0] - b[0]);
       return;
     }
-    const entry = { ...base, id: out.some(e => e.id === base.id) ? newId('day') : base.id, date, reads, amount, stamps };
+    // Same id on every device for the same split, so syncing matches lines instead of adding copies
+    const want = date === base.date ? base.id : `${base.id}@${date}`;
+    const entry = { ...base, id: out.some(e => e.id === want) ? `${want}+${out.length}` : want, date, reads, amount, stamps };
     if (!stamps.length) delete entry.stamps;
     merged.set(key, entry);
     out.push(entry);
   };
+  const seen = new Set();   // each add (time and reads) is counted once, whichever line it is on
   for (const day of log) {
-    const stamps = !day.whole && Array.isArray(day.stamps) ? day.stamps.filter(x => Array.isArray(x) && x.length === 2) : [];
-    if (!stamps.length) { out.push(day); continue; }
+    const all = !day.whole && Array.isArray(day.stamps) ? day.stamps.filter(x => Array.isArray(x) && x.length === 2) : [];
+    if (!all.length) { out.push(day); continue; }
     const reads = Number(day.reads) || 0;
     const perRead = reads ? (Number(day.amount) || 0) / reads : 0;
-    const stamped = stamps.reduce((t, x) => t + (Number(x[1]) || 0), 0);
-    const rest = Math.max(0, reads - stamped);
+    // Reads not tied to an add time stay on the line's own date
+    const rest = Math.max(0, reads - all.reduce((t, x) => t + (Number(x[1]) || 0), 0));
+    // An add already counted on another line (a copy from syncing two devices) is dropped here
+    const stamps = all.filter(x => { const k = `${x[0]}:${x[1]}`; if (seen.has(k)) return false; seen.add(k); return true; });
     const byDay = new Map();
     for (const stamp of stamps) {
       const date = workDayOf(stamp[0], hour);
@@ -2587,7 +2612,7 @@ function wireEditDay(day) {
     const date = whole ? `${raw.slice(0, 7)}-01` : raw;
     setMoon({ log: moon().log.map(item => {
       if (item.id !== day.id) return item;
-      const { whole: _old, ...rest } = item;
+      const { whole: _old, stamps: _times, ...rest } = item;   // an edited line keeps the date it is given
       return { ...rest, date, reads, amount, ...(whole ? { whole: true } : {}) };
     }) });
     S.editDay = null;
