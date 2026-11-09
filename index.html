@@ -423,6 +423,14 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .mh-value { font-size: 1.05rem; font-weight: 700; }
 .mh-value .muted { font-size: .8rem; font-weight: 500; }
 .mh-value-row { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.pip-body { margin: 0; background: var(--card); }
+.pip-card { padding: 12px 14px; font-variant-numeric: tabular-nums; }
+.pip-card .mh-value { font-size: 1.25rem; margin-top: 2px; }
+.pip-card .mh-track { height: 8px; }
+.pip-add { margin-top: 10px; }
+.pip-add input { flex: 1; width: auto; min-height: 34px; font-size: .9rem; }
+.pip-add .btn { min-height: 34px; padding: 4px 14px; font-size: .9rem; }
+.mh-pop { font-size: .75rem; }
 .mh-sets { font-size: .75rem; font-weight: 750; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
 .mh-sets.done { background: var(--good-bg); color: var(--good); }
 .mh-sets.pop { animation: mhPop .5s cubic-bezier(.3, 1.6, .5, 1); }
@@ -806,7 +814,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.11.0';
+const APP_VERSION = '2.12.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -965,6 +973,8 @@ const options = (items, selected) => items.map(item => {
 
 function show(screen) {
   for (const id of ['screen-setup', 'screen-unlock', 'screen-app']) $(id).hidden = id !== screen;
+  // The small Today's target window closes whenever the budget is locked
+  if (screen !== 'screen-app' && S.pipWin) { S.pipWin.close(); S.pipWin = null; }
 }
 
 let toastTimer = null;
@@ -1561,6 +1571,7 @@ function render() {
   });
   $('page').dataset.page = S.page; // lets Home use the full width of large screens
   document.body.dataset.page = S.page;
+  if (S.pipWin) renderPip();
   ({ home: renderHome, earnings: renderEarnings, 'earn-section': renderEarnings, 'earn-days': renderEarnDays, 'earn-month': renderEarnMonth, entries: renderEntries, heading: renderHeading, settings: renderSettings, 'settings-section': renderSettings, 'start-month': renderStartMonth, calculator: renderCalculator })[S.page]();
   updateFooter();
 }
@@ -1852,10 +1863,6 @@ function moonHomeHtml() {
   }
   const readsOn = key => typeReads.get(key) || 0;
   const setReads = readsOn(todayKey);
-  const monthPrefix = todayKey.slice(0, 7);
-  const bestThisMonth = Math.max(0, ...[...typeReads].filter(([key]) => key.startsWith(monthPrefix)).map(([, reads]) => reads));
-  let streak = 0;
-  for (let key = setReads ? todayKey : addDays(todayKey, -1); readsOn(key) > 0; key = addDays(key, -1)) streak++;
   // Sets of 5 reads done today, out of an ideal 50 sets; pops when a new set is done
   const sets = Math.floor(setReads / READ_SET);
   const setPop = S.mhPrevSets !== undefined && sets > S.mhPrevSets;
@@ -1869,17 +1876,12 @@ function moonHomeHtml() {
     marks ? [1 / 3, 2 / 3].map((at, i) => `<i class="mh-mark${now[key] >= at ? ' hit' : ''}${now[key] >= at && from[key] < at ? ' pop' : ''}" style="left:${(at * 100).toFixed(1)}%;--d:${(.7 + i * .25).toFixed(2)}s"></i>`).join('') : ''}</div>`;
   const reached = goal && s.todayNet >= target;
   // The note under today's target takes turns between a few short nudges
-  const tips = [
-    !goal ? 'Set a monthly goal in Moonlights'
-      : reached ? 'Today\'s target reached ✓'
-      : targetReads ? `${readsFor(target - s.todayNet).toLocaleString('en-IN')} more ${readType ? `${readType.name} ` : ''}reads to go today` : `${inr(target - s.todayNet)} to go today`,
-    targetReads && !reached && setReads ? `${setReads.toLocaleString('en-IN')} of ${targetReads.toLocaleString('en-IN')} reads done today` : '',
-    streak > 1 ? `${streak} days in a row 🔥` : '',
-    bestThisMonth ? `Best day this month: ${readsText(bestThisMonth)}` : '',
-    goal && s.monthNet && s.monthNet < goal ? (forecast >= goal ? 'On pace to beat the monthly goal' : `At this pace: ${Math.round(forecast / goal * 100)}% of the goal`) : ''
-  ].filter(Boolean);
-  // The reads still needed for today's target comes back every other turn
-  if (goal && !reached && tips.length > 2) tips.splice(0, tips.length, ...tips.slice(1).flatMap(tip => [tips[0], tip]));
+  // The line under today's target is only about the daily-target type's reads: done today and still to go
+  const name = readType ? `${readType.name} ` : '';
+  const tips = !goal ? ['Set a monthly goal in Moonlights']
+    : reached ? [`Today's target reached ✓ · ${setReads.toLocaleString('en-IN')} ${name}reads today`]
+    : targetReads ? [`${setReads.toLocaleString('en-IN')} ${name}reads done today`, `${readsFor(target - s.todayNet).toLocaleString('en-IN')} more ${name}reads to reach today's target`]
+    : [`${inr(target - s.todayNet)} to go today`];
   return `<section class="card moon-home" aria-label="Moonlights">
     <div class="mh-grid">
       <div class="mh-cell">
@@ -1897,13 +1899,74 @@ function moonHomeHtml() {
         <div class="mh-note">${!goal ? 'Earned this month' : s.monthNet >= goal ? 'Goal reached ✓' : `${inr(goal - s.monthNet)} to go · ${daysLeft === 1 ? '1 day' : `${daysLeft} days`} left`}</div>
       </div>
       <div class="mh-cell">
-        <div class="mh-label mh-label-row"><span>Month-end forecast</span></div>
+        <div class="mh-label mh-label-row"><span>Month-end forecast</span>${'documentPictureInPicture' in window ? `<button type="button" class="btn link mh-open mh-pop" data-action="pop-out-today" title="Open Today's target in a small window that stays on top" aria-label="Open Today's target in a small window that stays on top">⧉ Pop out</button>` : ''}</div>
         ${s.monthNet ? `<div class="mh-value">${num('forecast')}</div>
         <div class="mh-note">by ${esc(monthEnd)} · paid ${s.payMonths.map(key => new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'numeric' }).format(new Date(key + '-01T00:00:00'))).map(esc).join(', ')}</div>`
         : '<div class="mh-note">Log work this month to see a forecast</div>'}
       </div>
     </div>
   </section>`;
+}
+
+// Today's target in a small always-on-top window (Chrome and Edge on a computer, Document Picture-in-Picture).
+// It shows today's money against the target, sets of 5 and reads to go, and has its own Reads box.
+async function popOutToday() {
+  if (S.pipWin && !S.pipWin.closed) { S.pipWin.focus(); return; }
+  try {
+    const win = await window.documentPictureInPicture.requestWindow({ width: 340, height: 196 });
+    for (const style of document.querySelectorAll('style')) win.document.head.appendChild(style.cloneNode(true));
+    if (document.documentElement.dataset.theme) win.document.documentElement.dataset.theme = document.documentElement.dataset.theme;
+    win.document.title = "Today's target";
+    win.document.body.className = 'pip-body';
+    win.document.body.innerHTML = '<div id="pip-root"></div>';
+    win.addEventListener('pagehide', () => { S.pipWin = null; S.pipPrev = null; });
+    S.pipWin = win;
+    S.pipPrev = null;
+    renderPip();
+  } catch {
+    toast('This browser could not open the small window.', true);
+  }
+}
+
+function renderPip() {
+  const win = S.pipWin;
+  if (!win || win.closed) { S.pipWin = null; return; }
+  const doc = win.document;
+  const root = doc.getElementById('pip-root');
+  if (!root || !S.data) return;
+  const m = moon();
+  const { s, goal, target, readType, readsFor, targetReads } = moonPlan(m, new Date());
+  const todayKey = dateKey(new Date());
+  const xray = m.log.reduce((t, day) => t + (day.date === todayKey && !day.whole && (!readType || day.type === readType.id) ? Number(day.reads) || 0 : 0), 0);
+  const sets = Math.floor(xray / READ_SET);
+  const part = goal ? (target ? Math.min(1, s.todayNet / target) : 1) : 0;
+  const reached = goal && s.todayNet >= target;
+  const prev = S.pipPrev || { part: 0, net: 0, sets };
+  S.pipPrev = { part, net: s.todayNet, sets };
+  const note = !goal ? 'Set a monthly goal in Moonlights'
+    : reached ? `Today's target reached ✓ · ${xray.toLocaleString('en-IN')} ${readType ? `${esc(readType.name)} ` : ''}reads today`
+    : targetReads ? `${xray.toLocaleString('en-IN')} ${readType ? `${esc(readType.name)} ` : ''}reads done · ${readsFor(target - s.todayNet).toLocaleString('en-IN')} more to reach today's target` : `${inr(target - s.todayNet)} to go today`;
+  root.innerHTML = `<div class="pip-card">
+      <div class="mh-label mh-label-row"><span>Today's target</span><span class="mh-sets${sets >= READ_SETS_IDEAL ? ' done' : ''}${sets > prev.sets ? ' pop' : ''}">${sets}/${READ_SETS_IDEAL} sets</span></div>
+      <div class="mh-value"><span id="pip-net">${inr(prev.net)}</span>${goal ? ` <span class="muted">of ${inr(target)}</span>` : ''}</div>
+      ${goal ? `<div class="mh-track"><span class="mh-fill${reached ? ' done' : ''}" style="width:${(prev.part * 100).toFixed(1)}%"></span></div>` : ''}
+      <div class="mh-note">${note}</div>
+      ${readType ? `<form class="mh-add pip-add" novalidate><input type="number" inputmode="numeric" min="1" step="1" placeholder="${esc(readType.name)} reads" aria-label="${esc(readType.name)} reads done now"><button class="btn primary">Add</button></form>` : ''}
+    </div>`;
+  const form = root.querySelector('form');
+  if (form) form.addEventListener('submit', event => { event.preventDefault(); addQuickReads(form.querySelector('input')); });
+  const still = win.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const fill = root.querySelector('.mh-fill');
+  win.requestAnimationFrame(() => win.requestAnimationFrame(() => { if (fill) fill.style.width = (part * 100).toFixed(1) + '%'; }));
+  const net = doc.getElementById('pip-net');
+  if (still || prev.net === s.todayNet) { net.textContent = inr(s.todayNet); return; }
+  const startAt = performance.now();
+  const step = time => {
+    const t = Math.min(1, (time - startAt) / 900);
+    net.textContent = inr(prev.net + (s.todayNet - prev.net) * (1 - Math.pow(1 - t, 3)));
+    if (t < 1) win.requestAnimationFrame(step);
+  };
+  win.requestAnimationFrame(step);
 }
 
 // After Home is drawn: slide the bars and count the figures to their new values, and wire up quick add
@@ -1961,8 +2024,12 @@ function moonHomeAfter() {
 // They join today's entry for that type, so Work logged keeps one line per day.
 function handleQuickReads(event) {
   event.preventDefault();
-  const reads = Number($('mh-reads').value);
-  if (!Number.isInteger(reads) || reads <= 0) { $('mh-reads').focus(); toast('Enter the number of reads.'); return; }
+  addQuickReads($('mh-reads'));
+}
+
+function addQuickReads(input) {
+  const reads = Number(input.value);
+  if (!Number.isInteger(reads) || reads <= 0) { input.focus(); toast('Enter the number of reads.'); return; }
   const m = moon();
   const { readType: type } = moonPlan(m, new Date());
   if (!type) return;
@@ -3495,6 +3562,7 @@ const actions = {
   },
   'add-entry'(id) { openEntryDialog(null, id); },
   'open-moonlights'() { go('earnings'); },
+  'pop-out-today'() { popOutToday(); },
   'edit-day'(id) { S.editDay = id; render(); const first = $('edit-date'); if (first) first.focus(); },
   'cancel-edit-day'() {
     const id = S.editDay;
