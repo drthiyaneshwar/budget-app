@@ -893,7 +893,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.17.0';
+const APP_VERSION = '2.17.1';
 // Mini window: opened as index.html?mini, it shows only Today's target, in its own window,
 // so it stays open whatever happens to the main app's tab
 const MINI = new URLSearchParams(location.search).has('mini');
@@ -2118,9 +2118,11 @@ function renderTodayBox(win, root, prevKey) {
   const reached = goal && s.todayNet >= target;
   const prev = S[prevKey] || { part: 0, net: 0, sets };
   S[prevKey] = { part, net: s.todayNet, sets };
+  // Short: reads done / reads needed today (done + still to go), and how many are left
+  const toGo = goal && !reached && targetReads ? readsFor(target - s.todayNet) : 0;
   const note = !goal ? 'Set a monthly goal in Moonlights'
-    : reached ? `Today's target reached ✓ · ${xray.toLocaleString('en-IN')} ${readType ? `${esc(readType.name)} ` : ''}reads today`
-    : targetReads ? `${xray.toLocaleString('en-IN')} ${readType ? `${esc(readType.name)} ` : ''}reads done · ${readsFor(target - s.todayNet).toLocaleString('en-IN')} more to reach today's target` : `${inr(target - s.todayNet)} to go today`;
+    : reached ? `<strong>${xray.toLocaleString('en-IN')} reads</strong> · target reached ✓`
+    : targetReads ? `<strong>${xray.toLocaleString('en-IN')} / ${(xray + toGo).toLocaleString('en-IN')} reads</strong> · ${toGo.toLocaleString('en-IN')} to go` : `${inr(target - s.todayNet)} to go today`;
   const speedHtml = speedLineHtml();
   const head = `<div class="mh-label mh-label-row"><span>Today's target</span><span class="mh-sets${sets >= READ_SETS_IDEAL ? ' done' : ''}${sets > prev.sets ? ' pop' : ''}">${sets}/${READ_SETS_IDEAL} sets</span></div>`;
   const value = `<div class="mh-value"><span class="pip-net">${inr(prev.net)}</span>${goal ? ` <span class="muted">of ${inr(target)}</span>` : ''}</div>`;
