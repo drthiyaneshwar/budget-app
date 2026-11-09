@@ -190,6 +190,7 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
   main[data-page="home"] .group-total { font-size: 1.2rem; }
   body[data-page="home"] .foot { padding-bottom: 10px; }
 }
+.hero-split { display: block; font-size: .75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .foot { max-width: 1040px; margin: 0 auto; padding: 4px 16px 24px; color: var(--muted); font-size: .8125rem; }
 .sync-note { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 8px; padding: 8px 12px; background: var(--warn-bg); color: var(--warn); border-radius: var(--radius-sm); font-size: .875rem; }
 .sync-note.bad { background: var(--bad-bg); color: var(--bad); }
@@ -779,7 +780,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.5.2';
+const APP_VERSION = '2.6.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -2343,6 +2344,15 @@ function headingTree(entries, key) {
 
 function renderHome() {
   const s = summarize(S.data);
+  // This month's income is the monthly income plus the Moonlights money paid this month,
+  // so Left in salary and the buffer follow what really arrives each month
+  const salary = s.income;
+  const moonNow = earningsPaidIn(monthKey(new Date()));
+  if (moonNow) {
+    s.income += moonNow;
+    s.left += moonNow;
+    s.bufferOk = s.left >= s.buffer;
+  }
   const warnings = [];
   if (s.missingAccount.length) warnings.push(`Pointing to a deleted account and not counted: ${entryCount(s.missingAccount.length)} (${s.missingAccount.map(e => e.item).join(', ')}).`);
   if (s.missingSection.length) warnings.push(`Pointing to a deleted heading: ${entryCount(s.missingSection.length)} (${s.missingSection.map(e => e.item).join(', ')}).`);
@@ -2485,14 +2495,14 @@ function renderHome() {
         <span class="chip ${s.bufferOk ? 'good' : 'bad'}">${s.bufferOk ? `Buffer of ${inr(s.buffer)} met` : `Short ${inr(s.buffer - s.left)} for the ${inr(s.buffer)} buffer`}</span>
       </div>
       <dl class="hero-stats">
-        <div><dt>Income</dt><dd>${money(s.income)}</dd></div>
+        <div><dt>Income</dt><dd>${money(s.income)}</dd>${moonNow ? `<span class="hero-split">${inr(salary)} + ${inr(moonNow)} Moonlights</span>` : ''}</div>
         <div><dt>Left in salary</dt><dd>${money(s.left)}</dd></div>
       </dl>
     </section>
     ${splitCard}
     </div>
     <div class="home-cols"><div class="home-col">
-    ${expectedIncomeHtml(s.income)}
+    ${expectedIncomeHtml(salary)}
     ${groupsHtml}
     ${billsHtml()}
     ${moonHomeHtml()}
