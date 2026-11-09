@@ -478,6 +478,8 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .page-head:has(.day-ends) { flex-wrap: wrap; }
 .day-ends { display: flex; align-items: center; gap: 8px; margin: 0; font-size: .85rem; font-weight: 600; color: var(--muted); white-space: nowrap; }
 .day-ends select { width: auto; min-height: 36px; padding: 4px 8px; font-size: .9rem; }
+.fc-pay { margin-top: 4px; font-size: .85rem; font-variant-numeric: tabular-nums; }
+.fc-pay .need-line { color: var(--text); }
 .mh-windows { display: flex; gap: 14px; margin-top: 6px; }
 body[data-mini] .topbar { display: none; }
 body[data-mini] .foot { padding: 18px 14px 8px; font-size: .7rem; }
@@ -896,7 +898,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.18.2';
+const APP_VERSION = '2.19.0';
 // Mini window: opened as index.html?mini, it shows only Today's target, in its own window,
 // so it stays open whatever happens to the main app's tab
 const MINI = new URLSearchParams(location.search).has('mini');
@@ -1852,20 +1854,35 @@ const addDays = (key, n) => {
 };
 const readsText = n => (n === 1 ? '1 read' : `${n.toLocaleString('en-IN')} reads`);
 
+// The work type reads are counted in: the one chosen in Set monthly goal, else the fixed-rate type with the most reads
+function targetReadType(m) {
+  const goals = m.goals || {};
+  const readsOf = id => m.log.reduce((t, day) => t + (day.type === id ? Number(day.reads) || 0 : 0), 0);
+  const fixedTypes = m.types.filter(t => t.fixed && Number(t.rate) > 0);
+  return fixedTypes.find(t => t.id === goals.readType) || [...fixedTypes].sort((a, b) => readsOf(b.id) - readsOf(a.id))[0];
+}
+
+// Reads (today's, streak, best day, reads badges) count only the daily-target type; money counts every type
 function moonStats(m, today) {
+  const readType = targetReadType(m);
+  const counts = day => !readType || day.type === readType.id;
   const byDate = new Map();
   const byMonth = new Map();
+  let allReads = 0, allNet = 0;
   for (const day of m.log) {
+    const reads = counts(day) ? Number(day.reads) || 0 : 0;
     if (!day.whole) {
       const row = byDate.get(day.date) || { reads: 0, net: 0 };
-      row.reads += Number(day.reads) || 0;
+      row.reads += reads;
       row.net += netOf(day);
       byDate.set(day.date, row);
     }
     const month = byMonth.get(day.date.slice(0, 7)) || { reads: 0, net: 0 };
-    month.reads += Number(day.reads) || 0;
+    month.reads += reads;
     month.net += netOf(day);
     byMonth.set(day.date.slice(0, 7), month);
+    allReads += Number(day.reads) || 0;
+    allNet += netOf(day);
   }
   const todayKey = dateKey(today);
   const readsOn = key => (byDate.get(key) || {}).reads || 0;
@@ -1900,11 +1917,12 @@ function moonStats(m, today) {
     days: Array.from({ length: daysInMonth }, (_, i) => readsOn(`${nowKey}-${String(i + 1).padStart(2, '0')}`)),
     monthReads: month.reads,
     monthNet: month.net,
-    // Reads per rupee, to turn a ₹ target into reads: this month's mix, or all work if none yet
-    readsPerRupee: month.net ? month.reads / month.net
-      : (all => (all.net ? all.reads / all.net : 0))([...byMonth.values()].reduce((t, x) => ({ reads: t.reads + x.reads, net: t.net + x.net }), { reads: 0, net: 0 })),
+    // Reads per rupee, only used when there is no fixed-rate type to count reads in: the mix of all work
+    readsPerRupee: allNet ? allReads / allNet : 0,
     priorNet: month.net - ((byDate.get(todayKey) || {}).net || 0),
     payMonths: [...new Set(m.log.filter(day => day.date.startsWith(nowKey)).map(payMonth))].sort(),
+    // This month's work so far, by the month it is paid in
+    netByPay: [...m.log.filter(day => day.date.startsWith(nowKey)).reduce((map, day) => map.set(payMonth(day), (map.get(payMonth(day)) || 0) + netOf(day)), new Map())].sort((a, b) => a[0].localeCompare(b[0])),
     bestDay: record,
     bestMonthReads: Math.max(0, ...[...byMonth.values()].map(x => x.reads)),
     bestMonthNet: Math.max(0, ...[...byMonth.values()].map(x => x.net))
@@ -1922,9 +1940,8 @@ function moonPlan(m, today) {
   const target = goal ? Math.max(0, (goal - s.priorNet) / daysFromToday) : 0;
   // Target reads are counted in one fixed-rate work type: the one chosen below, else the one with the most reads.
   // Reads per rupee comes from its pay per read after TDS; with no fixed-rate type, from the mix of work logged.
-  const readsOf = id => m.log.reduce((t, day) => t + (day.type === id ? Number(day.reads) || 0 : 0), 0);
   const fixedTypes = m.types.filter(t => t.fixed && Number(t.rate) > 0);
-  const readType = fixedTypes.find(t => t.id === goals.readType) || [...fixedTypes].sort((a, b) => readsOf(b.id) - readsOf(a.id))[0];
+  const readType = targetReadType(m);
   const perRead = readType ? afterTds(Number(readType.rate), readType.tds) : 0;
   const readsFor = amount => Math.max(0, Math.ceil(amount * (perRead ? 1 / perRead : s.readsPerRupee)));
   const targetReads = target && (perRead || s.readsPerRupee) ? readsFor(target) : 0;
@@ -1937,10 +1954,13 @@ function moonPlan(m, today) {
     : `${inr(goal - s.monthNet)} short of the goal`;
   // Month-end forecast from the pace so far
   const forecast = s.monthNet / dayNo * s.daysInMonth;
+  // The forecast split by when it is paid: each pay month's share of this month's work, at the same pace
+  const nowKey = monthKey(today);
+  const forecastByPay = s.netByPay.map(([key, net]) => ({ key, amount: net / dayNo * s.daysInMonth, ahead: (Number(key.slice(0, 4)) - Number(nowKey.slice(0, 4))) * 12 + Number(key.slice(5)) - Number(nowKey.slice(5)) }));
 
   const monthName = new Intl.DateTimeFormat('en-IN', { month: 'long' }).format(today);
   const monthEnd = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(new Date(today.getFullYear(), today.getMonth(), s.daysInMonth));
-  return { s, goals, goal, dayNo, target, fixedTypes, readType, perRead, readsFor, targetReads, goalPart, daysLeft, goalNote, forecast, monthName, monthEnd };
+  return { s, goals, goal, dayNo, target, fixedTypes, readType, perRead, readsFor, targetReads, goalPart, daysLeft, goalNote, forecast, forecastByPay, monthName, monthEnd };
 }
 
 // Reads are done in sets of 5; 50 sets a day is the ideal
@@ -1962,7 +1982,7 @@ setInterval(() => {
 function moonHomeHtml() {
   const m = moon();
   if (!m.types.length) return '';
-  const { s, goal, target, readType, perRead, targetReads, readsFor, goalPart, daysLeft, forecast, monthEnd } = moonPlan(m, workDate());
+  const { s, goal, target, readType, perRead, targetReads, readsFor, goalPart, daysLeft, forecast, forecastByPay, monthEnd } = moonPlan(m, workDate());
   const todayPart = goal ? (target ? Math.min(1, s.todayNet / target) : 1) : 0;
   // Bars and figures move from where they were (or from zero when Home opens) to where they are now
   const now = { todayPart, goalPart, todayNet: s.todayNet, monthNet: s.monthNet, forecast };
@@ -2014,7 +2034,7 @@ function moonHomeHtml() {
       <div class="mh-cell">
         <div class="mh-label mh-label-row"><span>Month-end forecast</span></div>
         ${s.monthNet ? `<div class="mh-value">${num('forecast')}</div>
-        <div class="mh-note">by ${esc(monthEnd)} · paid ${s.payMonths.map(key => new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'numeric' }).format(new Date(key + '-01T00:00:00'))).map(esc).join(', ')}</div>`
+        <div class="mh-note">${forecastByPay.map(x => `${esc(new Intl.DateTimeFormat('en-IN', { month: 'short' }).format(new Date(x.key + '-01T00:00:00')))} <strong>${inr(x.amount)}</strong>`).join(' · ')}</div>`
         : '<div class="mh-note">Log work this month to see a forecast</div>'}
         <div class="mh-windows">${'documentPictureInPicture' in window ? `<button type="button" class="btn link mh-open mh-pop" data-action="pop-out-today" title="Today's target in a small window that stays on top while this app is open">⧉ Pop out</button>` : ''}<button type="button" class="btn link mh-open mh-pop" data-action="open-mini" title="Today's target in its own small window that stays open when this tab is closed">▣ Mini window</button></div>
       </div>
@@ -2458,7 +2478,7 @@ function addQuickReads(input) {
 }
 
 function moonCardHtml(m, today) {
-  const { s, goal, target, fixedTypes, readType, perRead, readsFor, targetReads, goalPart, goalNote, forecast, monthName, monthEnd } = moonPlan(m, today);
+  const { s, goal, target, fixedTypes, readType, perRead, readsFor, targetReads, goalPart, goalNote, forecast, forecastByPay, monthName, monthEnd } = moonPlan(m, today);
   const weekday = key => new Intl.DateTimeFormat('en-IN', { weekday: 'long' }).format(new Date(key + 'T00:00:00'));
   const count = (value, money) => `<span data-count="${money ? roundUp(value) : Math.round(value)}"${money ? ' data-money="1"' : ''}>${money ? inr(value) : Math.round(value).toLocaleString('en-IN')}</span>`;
 
@@ -2511,7 +2531,7 @@ function moonCardHtml(m, today) {
         ${s.monthNet ? `<div class="moon-big">${count(forecast, true)}</div>
         <div class="muted small">by ${esc(monthEnd)} at this pace</div>
         <div class="moon-fc"><span class="moon-fc-proj"></span><span class="moon-fc-now" style="width:${(s.monthNet / forecast * 100).toFixed(1)}%"></span></div>
-        <div class="muted small">Paid to you in ${s.payMonths.map(monthLabel).map(esc).join(', ')}</div>`
+        <div class="fc-pay">${forecastByPay.map(x => `<div class="need-line"><span>Paid in ${esc(monthLabel(x.key))} <span class="muted">· ${x.ahead === 1 ? 'next month' : x.ahead === 2 ? 'in 2 months' : x.ahead <= 0 ? 'this month' : `in ${x.ahead} months`}</span></span><strong>${inr(x.amount)}</strong></div>`).join('')}</div>`
         : '<div class="muted small">Log work this month to see a forecast.</div>'}
       </div>
     </div>
