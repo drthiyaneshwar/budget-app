@@ -781,7 +781,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.7.0';
+const APP_VERSION = '2.7.1';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -920,9 +920,16 @@ let saveTimer = null;
 const $ = id => document.getElementById(id);
 const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const rupeeFormat = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
-const inr = value => rupeeFormat.format(Math.round(value) || 0);
+// Rupee amounts are shown rounded up to the next whole rupee (27.1, 27.5 and 27.6 all show as 28).
+// Less than half a paisa is treated as float noise, so 100.0000001 still shows as 100.
+const roundUp = value => {
+  const v = Number(value) || 0;
+  const whole = Math.ceil(Math.abs(v) - 0.005);
+  return (v < 0 ? -whole : whole) || 0;
+};
+const inr = value => rupeeFormat.format(roundUp(value));
 // Same as inr, but with the rupee sign wrapped so it can be shown smaller
-const money = value => rupeeFormat.formatToParts(Math.round(value) || 0).map(part => part.type === 'currency' ? `<span class="cur">${part.value}</span>` : part.value).join('');
+const money = value => rupeeFormat.formatToParts(roundUp(value)).map(part => part.type === 'currency' ? `<span class="cur">${part.value}</span>` : part.value).join('');
 const newId = prefix => prefix + '_' + Array.from(randomBytes(6), b => b.toString(16).padStart(2, '0')).join('');
 const entryCount = count => count === 1 ? '1 entry' : `${count} entries`;
 const options = (items, selected) => items.map(item => {
@@ -1809,7 +1816,7 @@ function moonHomeHtml() {
   const from = S.homeAnim ? { todayPart: 0, goalPart: 0, todayNet: 0, monthNet: 0, forecast: 0 } : (S.mhPrev || now);
   S.homeAnim = false;
   S.mhPrev = now;
-  const num = key => `<span class="mh-num" data-from="${Math.round(from[key])}" data-to="${Math.round(now[key])}">${inr(from[key])}</span>`;
+  const num = key => `<span class="mh-num" data-from="${roundUp(from[key])}" data-to="${roundUp(now[key])}">${inr(from[key])}</span>`;
   // Bars with slowly moving stripes; the goal bar also has dots at a third and two thirds that light up once passed
   const bar = (key, done, marks) => `<div class="mh-track"><span class="mh-fill${done ? ' done' : ''}" style="width:${(from[key] * 100).toFixed(1)}%" data-w="${(now[key] * 100).toFixed(1)}"></span>${
     marks ? [1 / 3, 2 / 3].map((at, i) => `<i class="mh-mark${now[key] >= at ? ' hit' : ''}${now[key] >= at && from[key] < at ? ' pop' : ''}" style="left:${(at * 100).toFixed(1)}%;--d:${(.7 + i * .25).toFixed(2)}s"></i>`).join('') : ''}</div>`;
@@ -1928,7 +1935,7 @@ function handleQuickReads(event) {
 function moonCardHtml(m, today) {
   const { s, goal, target, fixedTypes, readType, perRead, readsFor, targetReads, goalPart, goalNote, forecast, monthName, monthEnd } = moonPlan(m, today);
   const weekday = key => new Intl.DateTimeFormat('en-IN', { weekday: 'long' }).format(new Date(key + 'T00:00:00'));
-  const count = (value, money) => `<span data-count="${Math.round(value)}"${money ? ' data-money="1"' : ''}>${money ? inr(value) : Math.round(value).toLocaleString('en-IN')}</span>`;
+  const count = (value, money) => `<span data-count="${money ? roundUp(value) : Math.round(value)}"${money ? ' data-money="1"' : ''}>${money ? inr(value) : Math.round(value).toLocaleString('en-IN')}</span>`;
 
   // Today's ring
   const ringLength = 377;   // 2πr for r = 60
