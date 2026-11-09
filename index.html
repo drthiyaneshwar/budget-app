@@ -896,7 +896,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.17.4';
+const APP_VERSION = '2.17.5';
 // Mini window: opened as index.html?mini, it shows only Today's target, in its own window,
 // so it stays open whatever happens to the main app's tab
 const MINI = new URLSearchParams(location.search).has('mini');
@@ -2099,9 +2099,15 @@ function speedLineHtml() {
   const left = goal && s.todayNet < target && targetReads ? readsFor(target - s.todayNet) : 0;
   return `⚡ <strong>${Math.round(speed.perHour).toLocaleString('en-IN')} reads/hr</strong>${left && !speed.stale ? ` · target in about ${hoursText(left / speed.perHour)}` : ''}`;
 }
-// Refresh just the speed line in the floating and mini windows every minute
+// Refresh just the speed line in the floating and mini windows every minute; when the Moonlights day
+// ends (the Day ends at time passes, or it is changed to a time already passed), redraw everything open
+// so it moves on to the next day's target, reads and sets
+let shownWorkDay = '';
 setInterval(() => {
   if (!S.data) return;
+  const day = dateKey(workDate());
+  if (shownWorkDay && day !== shownWorkDay) { shownWorkDay = day; S.mhPrev = null; S.pipPrev = null; S.miniPrev = null; render(); return; }
+  shownWorkDay = day;
   const roots = [S.pipWin && !S.pipWin.closed && S.pipWin.document.getElementById('pip-root'), MINI && document.getElementById('mini-root')].filter(Boolean);
   for (const root of roots) { const line = root.querySelector('.pip-speed'); if (line) line.innerHTML = speedLineHtml(); }
 }, 60000);
