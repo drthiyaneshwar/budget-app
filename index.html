@@ -898,7 +898,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.19.0';
+const APP_VERSION = '2.19.1';
 // Mini window: opened as index.html?mini, it shows only Today's target, in its own window,
 // so it stays open whatever happens to the main app's tab
 const MINI = new URLSearchParams(location.search).has('mini');
@@ -1922,7 +1922,12 @@ function moonStats(m, today) {
     priorNet: month.net - ((byDate.get(todayKey) || {}).net || 0),
     payMonths: [...new Set(m.log.filter(day => day.date.startsWith(nowKey)).map(payMonth))].sort(),
     // This month's work so far, by the month it is paid in
-    netByPay: [...m.log.filter(day => day.date.startsWith(nowKey)).reduce((map, day) => map.set(payMonth(day), (map.get(payMonth(day)) || 0) + netOf(day)), new Map())].sort((a, b) => a[0].localeCompare(b[0])),
+    // This month's work so far by the month it is paid in, for the daily-target type and for all other work
+    netByPay: [...m.log.filter(day => day.date.startsWith(nowKey)).reduce((map, day) => {
+      const kind = !readType || day.type === readType.id ? 'main' : 'other';
+      const key = `${payMonth(day)}|${kind}`;
+      return map.set(key, (map.get(key) || 0) + netOf(day));
+    }, new Map())].map(([key, net]) => ({ key: key.split('|')[0], kind: key.split('|')[1], net })),
     bestDay: record,
     bestMonthReads: Math.max(0, ...[...byMonth.values()].map(x => x.reads)),
     bestMonthNet: Math.max(0, ...[...byMonth.values()].map(x => x.net))
@@ -1952,11 +1957,13 @@ function moonPlan(m, today) {
     : s.monthNet >= goal ? 'Goal reached this month. Well done!'
     : daysLeft > 0 ? `${inr(goal - s.monthNet)} to go · ${daysLeft === 1 ? '1 day' : `${daysLeft} days`} left${s.todayReads ? ` after today, so ${inr((goal - s.monthNet) / daysLeft)} a day from tomorrow` : ''}`
     : `${inr(goal - s.monthNet)} short of the goal`;
-  // Month-end forecast from the pace so far
-  const forecast = s.monthNet / dayNo * s.daysInMonth;
-  // The forecast split by when it is paid: each pay month's share of this month's work, at the same pace
+  // Month-end forecast: the daily-target type (regular, like DGrad Xray) is projected at this month's pace;
+  // other work (like USG, not regular enough to project) counts only as already earned
   const nowKey = monthKey(today);
-  const forecastByPay = s.netByPay.map(([key, net]) => ({ key, amount: net / dayNo * s.daysInMonth, ahead: (Number(key.slice(0, 4)) - Number(nowKey.slice(0, 4))) * 12 + Number(key.slice(5)) - Number(nowKey.slice(5)) }));
+  const forecastByPay = s.netByPay.map(x => ({ ...x, amount: x.kind === 'main' ? x.net / dayNo * s.daysInMonth : x.net,
+    ahead: (Number(x.key.slice(0, 4)) - Number(nowKey.slice(0, 4))) * 12 + Number(x.key.slice(5)) - Number(nowKey.slice(5)) }))
+    .sort((a, b) => (a.kind === b.kind ? a.key.localeCompare(b.key) : a.kind === 'main' ? -1 : 1));
+  const forecast = forecastByPay.reduce((t, x) => t + x.amount, 0);
 
   const monthName = new Intl.DateTimeFormat('en-IN', { month: 'long' }).format(today);
   const monthEnd = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(new Date(today.getFullYear(), today.getMonth(), s.daysInMonth));
@@ -2034,7 +2041,7 @@ function moonHomeHtml() {
       <div class="mh-cell">
         <div class="mh-label mh-label-row"><span>Month-end forecast</span></div>
         ${s.monthNet ? `<div class="mh-value">${num('forecast')}</div>
-        <div class="mh-note">${forecastByPay.map(x => `${esc(new Intl.DateTimeFormat('en-IN', { month: 'short' }).format(new Date(x.key + '-01T00:00:00')))} <strong>${inr(x.amount)}</strong>`).join(' · ')}</div>`
+        <div class="mh-note">${forecastByPay.map(x => `${esc(new Intl.DateTimeFormat('en-IN', { month: 'short' }).format(new Date(x.key + '-01T00:00:00')))} <strong>${inr(x.amount)}</strong>${x.kind === 'other' ? ' so far' : ''}`).join(' · ')}</div>`
         : '<div class="mh-note">Log work this month to see a forecast</div>'}
         <div class="mh-windows">${'documentPictureInPicture' in window ? `<button type="button" class="btn link mh-open mh-pop" data-action="pop-out-today" title="Today's target in a small window that stays on top while this app is open">⧉ Pop out</button>` : ''}<button type="button" class="btn link mh-open mh-pop" data-action="open-mini" title="Today's target in its own small window that stays open when this tab is closed">▣ Mini window</button></div>
       </div>
@@ -2529,9 +2536,9 @@ function moonCardHtml(m, today) {
       <div class="moon-mini">
         <div class="moon-sec-head"><span>Month-end forecast</span></div>
         ${s.monthNet ? `<div class="moon-big">${count(forecast, true)}</div>
-        <div class="muted small">by ${esc(monthEnd)} at this pace</div>
+        <div class="muted small">by ${esc(monthEnd)}${readType ? ` · ${esc(readType.name)} at this pace, other work as done so far` : ' at this pace'}</div>
         <div class="moon-fc"><span class="moon-fc-proj"></span><span class="moon-fc-now" style="width:${(s.monthNet / forecast * 100).toFixed(1)}%"></span></div>
-        <div class="fc-pay">${forecastByPay.map(x => `<div class="need-line"><span>Paid in ${esc(monthLabel(x.key))} <span class="muted">· ${x.ahead === 1 ? 'next month' : x.ahead === 2 ? 'in 2 months' : x.ahead <= 0 ? 'this month' : `in ${x.ahead} months`}</span></span><strong>${inr(x.amount)}</strong></div>`).join('')}</div>`
+        <div class="fc-pay">${forecastByPay.map(x => `<div class="need-line"><span>${x.kind === 'main' ? `${readType ? esc(readType.name) : 'Reads'} at this pace` : 'Other work done so far'} <span class="muted">· paid ${esc(monthLabel(x.key))}${x.ahead === 1 ? ', next month' : x.ahead === 2 ? ', in 2 months' : ''}</span></span><strong>${inr(x.amount)}</strong></div>`).join('')}</div>`
         : '<div class="muted small">Log work this month to see a forecast.</div>'}
       </div>
     </div>
