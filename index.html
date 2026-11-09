@@ -806,7 +806,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.10.5';
+const APP_VERSION = '2.11.0';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -1555,13 +1555,13 @@ function render() {
   syncIncome();
   document.querySelectorAll('.tab').forEach(tab => {
     // The calculator page belongs to Settings, and a heading's page to Entries
-    const current = { calculator: 'settings', 'start-month': 'settings', heading: 'entries', 'earn-days': 'earnings', 'earn-month': 'earnings', 'earn-section': 'earnings' }[S.page] || S.page;
+    const current = { calculator: 'settings', 'start-month': 'settings', 'settings-section': 'settings', heading: 'entries', 'earn-days': 'earnings', 'earn-month': 'earnings', 'earn-section': 'earnings' }[S.page] || S.page;
     if (tab.dataset.page === current) tab.setAttribute('aria-current', 'page');
     else tab.removeAttribute('aria-current');
   });
   $('page').dataset.page = S.page; // lets Home use the full width of large screens
   document.body.dataset.page = S.page;
-  ({ home: renderHome, earnings: renderEarnings, 'earn-section': renderEarnings, 'earn-days': renderEarnDays, 'earn-month': renderEarnMonth, entries: renderEntries, heading: renderHeading, settings: renderSettings, 'start-month': renderStartMonth, calculator: renderCalculator })[S.page]();
+  ({ home: renderHome, earnings: renderEarnings, 'earn-section': renderEarnings, 'earn-days': renderEarnDays, 'earn-month': renderEarnMonth, entries: renderEntries, heading: renderHeading, settings: renderSettings, 'settings-section': renderSettings, 'start-month': renderStartMonth, calculator: renderCalculator })[S.page]();
   updateFooter();
 }
 
@@ -1872,12 +1872,14 @@ function moonHomeHtml() {
   const tips = [
     !goal ? 'Set a monthly goal in Moonlights'
       : reached ? 'Today\'s target reached ✓'
-      : targetReads ? `${readsFor(target - s.todayNet).toLocaleString('en-IN')} more reads for today's target` : `${inr(target - s.todayNet)} to go today`,
+      : targetReads ? `${readsFor(target - s.todayNet).toLocaleString('en-IN')} more ${readType ? `${readType.name} ` : ''}reads to go today` : `${inr(target - s.todayNet)} to go today`,
     targetReads && !reached && setReads ? `${setReads.toLocaleString('en-IN')} of ${targetReads.toLocaleString('en-IN')} reads done today` : '',
     streak > 1 ? `${streak} days in a row 🔥` : '',
     bestThisMonth ? `Best day this month: ${readsText(bestThisMonth)}` : '',
     goal && s.monthNet && s.monthNet < goal ? (forecast >= goal ? 'On pace to beat the monthly goal' : `At this pace: ${Math.round(forecast / goal * 100)}% of the goal`) : ''
   ].filter(Boolean);
+  // The reads still needed for today's target comes back every other turn
+  if (goal && !reached && tips.length > 2) tips.splice(0, tips.length, ...tips.slice(1).flatMap(tip => [tips[0], tip]));
   return `<section class="card moon-home" aria-label="Moonlights">
     <div class="mh-grid">
       <div class="mh-cell">
@@ -2832,16 +2834,6 @@ function monthNeed(m) {
   return { regular, invest, once, dueFull, dueShare, laterShares, aside, transfer, fromSaved, needed: transfer + fromSaved };
 }
 
-// A row in Settings that opens the Start of month page
-function startMonthCard() {
-  return `<div class="card">
-      <button class="card-head summary-toggle" data-action="open-start-month">
-        <span><span class="summary-title">Money at the start of the month</span><span class="subtotals">How much each account needs on the 1st</span></span>
-        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
-      </button>
-    </div>`;
-}
-
 // Start of month: for a chosen month, what each account needs on the 1st to cover that month,
 // with what makes it up and, where a balance is entered, how it compares
 function renderStartMonth() {
@@ -2911,16 +2903,6 @@ function renderStartMonth() {
     }).join('')}</ul></div>` : '<div class="card"><p class="empty">Add entries with an account on the Entries page to see this.</p></div>'}
     <p class="small muted">Each yearly or quarterly bill gets its monthly share every month, starting the month after it is paid, so the full amount is there after the transfer in its due month. A bill due in May is saved from June to the next May. If you started saving later, the account will show as short until it catches up.</p>`;
   $('start-pick').addEventListener('change', () => { S.startPick = Number($('start-pick').value); render(); });
-}
-
-// A row in Settings that opens the calculator page
-function calculatorCard() {
-  return `<div class="card">
-      <button class="card-head summary-toggle" data-action="open-calculator">
-        <span><span class="summary-title">Calculator</span><span class="subtotals">Savings account vs liquid fund vs FD</span></span>
-        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
-      </button>
-    </div>`;
 }
 
 // The calculator's own page, opened from Settings
@@ -3138,7 +3120,6 @@ function handleHeadingSubmit(event) {
 
 // The Accounts card in Settings, closed until selected
 function accountsCard() {
-  const isOpen = S.open.has('settings-accounts');
   const transfers = new Map(summarize(S.data).accounts.map(row => [row.account.id, row.total]));
   const rows = S.data.accounts.map(a => `<tr data-id="${esc(a.id)}">
       <td data-label="Name"><input aria-label="Account name" data-field="name" value="${esc(a.name)}"></td>
@@ -3150,17 +3131,13 @@ function accountsCard() {
     </tr>`).join('');
   const count = S.data.accounts.length;
   return `<div class="card">
-      <button class="card-head summary-toggle" data-action="toggle-group" data-id="settings-accounts" aria-expanded="${isOpen}" aria-controls="settings-accounts">
-        <span><span class="summary-title">Accounts</span><span class="subtotals">${count === 1 ? '1 account' : `${count} accounts`} · ${isOpen ? 'Select to hide' : 'Select to add or change'}</span></span>
-        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-      </button>
-      ${isOpen ? `<div id="settings-accounts">
+      <div id="settings-accounts">
         <div class="btn-row sec-actions"><button class="btn primary" data-action="add-account">Add account</button></div>
         ${rows ? `<table class="stack edit-table" data-list="accounts">
           <thead><tr><th>Name</th><th>Role</th><th>Type</th><th class="num">Per month</th><th>Balance today (₹)</th><th><span hidden>Actions</span></th></tr></thead>
           <tbody>${rows}</tbody>
         </table>` : '<p class="empty">No accounts yet.</p>'}
-      </div>` : ''}
+      </div>
     </div>`;
 }
 
@@ -3188,33 +3165,30 @@ function incomeSourcesHtml() {
 }
 
 function renderSettings() {
-  $('page').innerHTML = `
-    <div class="page-head"><h2>Settings</h2></div>
-    <div class="card">
-      <div class="card-head"><h3>Income and buffer</h3></div>
-      <div class="card-body">
+  const count = S.data.accounts.length;
+  const chev = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+  // Each Settings heading opens on its own page; Calculator and Money at the start of the month have their own pages already
+  const sections = {
+    income: { title: 'Income and buffer', sub: `${inr(S.data.settings.income)} a month · buffer ${inr(S.data.settings.buffer)}`,
+      body: () => `<div class="card"><div class="card-body">
         ${incomeSourcesHtml()}
         <label style="margin-bottom:0">Buffer, the minimum to keep in salary (₹)
           <input id="set-buffer" type="number" inputmode="decimal" min="0" step="any" value="${esc(S.data.settings.buffer)}">
         </label>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-head"><h3>Appearance</h3></div>
-      <div class="card-body">
+      </div></div>` },
+    appearance: { title: 'Appearance', sub: { system: 'Same as device', light: 'Normal (light)', dark: 'Dark' }[getTheme()] || 'Theme',
+      body: () => `<div class="card"><div class="card-body">
         <label style="margin-bottom:0">Theme <span class="hint">Applies to this device only.</span>
           <select id="set-theme">
             ${[['system', 'Same as device'], ['light', 'Normal (light)'], ['dark', 'Dark']].map(([value, label]) => `<option value="${value}"${getTheme() === value ? ' selected' : ''}>${label}</option>`).join('')}
           </select>
         </label>
-      </div>
-    </div>
-    ${accountsCard()}
-    ${startMonthCard()}
-    ${calculatorCard()}
-    <div class="card">
-      <div class="card-head"><h3>Export</h3></div>
-      <div class="card-body">
+      </div></div>` },
+    accounts: { title: 'Accounts', sub: `${count === 1 ? '1 account' : `${count} accounts`} · names, types and balances`, body: () => accountsCard() },
+    'start-month': { title: 'Money at the start of the month', sub: 'How much each account needs on the 1st', page: 'start-month' },
+    calculator: { title: 'Calculator', sub: 'Savings account vs liquid fund vs FD', page: 'calculator' },
+    export: { title: 'Export', sub: 'Copy or download your budget as text, Excel or JSON',
+      body: () => `<div class="card"><div class="card-body">
         <label>Format
           <select id="exp-format">
             <option value="md">Text for AI chatbots (best for analysis)</option>
@@ -3227,11 +3201,9 @@ function renderSettings() {
           <button type="button" class="btn" data-action="export-download">Download file</button>
         </div>
         <p class="small muted" style="margin:12px 0 0">Exports your whole budget: overview, income, accounts, headings, entries and the bills due over the next 12 months. The export is not encrypted. Keep the file private and delete it when you are done. Before pasting into a chatbot, think about removing names you would rather not share.</p>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-head"><h3>Data and security</h3></div>
-      <div class="card-body">
+      </div></div>` },
+    security: { title: 'Data and security', sub: 'Passcode, GitHub token, this device and backup',
+      body: () => `<div class="card"><div class="card-body">
         <form id="pass-form" novalidate>
           <h3 style="margin-bottom:8px">Change passcode</h3>
           <label>Current passcode <input id="p-old" type="password" autocomplete="current-password"></label>
@@ -3259,11 +3231,28 @@ function renderSettings() {
           <button class="btn" data-action="lock">Lock now</button>
           <button class="btn danger" data-action="forget">Forget this device</button>
         </div>
-      </div>
-    </div>
-    <p class="muted small">Budget Planner version ${esc(APP_VERSION)}</p>`;
-  $('pass-form').addEventListener('submit', handleChangePasscode);
-  $('token-form').addEventListener('submit', handleReplaceToken);
+      </div></div>`,
+      after: () => {
+        $('pass-form').addEventListener('submit', handleChangePasscode);
+        $('token-form').addEventListener('submit', handleReplaceToken);
+      } }
+  };
+  const open = S.page === 'settings-section' ? sections[S.settingsSection] : null;
+  if (open) {
+    $('page').innerHTML = `
+      <button type="button" class="btn link back-link" data-action="close-settings-section">‹ Back to Settings</button>
+      <div class="page-head"><div><h2>${open.title}</h2><div class="page-sub">${open.sub}</div></div></div>
+      ${open.body()}`;
+    if (open.after) open.after();
+    return;
+  }
+  $('page').innerHTML = `
+    <div class="page-head"><h2>Settings</h2></div>
+    <div class="card">
+      <ul class="type-list">${Object.entries(sections).map(([id, sec]) => `<li><button class="type-row" data-action="${sec.page ? `open-${sec.page}` : 'open-settings-section'}" data-id="${id}">
+          <span class="type-main"><span class="type-name">${sec.title}</span><span class="muted small">${sec.sub}</span></span>${chev}
+        </button></li>`).join('')}</ul>
+    </div>`;
 }
 
 /* ---------- Settings actions ---------- */
@@ -3604,6 +3593,8 @@ const actions = {
   'close-heading'() { go('entries'); },
   'close-calculator'() { go('settings'); },
   'open-start-month'() { go('start-month'); },
+  'open-settings-section'(id) { S.settingsSection = id; go('settings-section'); },
+  'close-settings-section'() { go('settings'); },
   'close-start-month'() { go('settings'); },
   'export-copy'() { exportData('copy'); },
   'export-download'() { exportData('download'); },
