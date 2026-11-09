@@ -793,7 +793,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.9.0';
+const APP_VERSION = '2.9.1';
 const PBKDF2_ITERATIONS = 250000;
 const MIN_PASSCODE = 6;
 const DATA_PATH = 'budget-data.json';
@@ -2520,7 +2520,7 @@ function renderHome() {
         <div>
           <div class="hero-label" id="hero-label">Total to transfer</div>
           <div class="hero-line"><div class="hero-value">${money(s.totalTransfer)}</div>
-          ${Math.abs(dueExtra) >= 1 ? `<span class="hero-split">Usual month ${inr(usualTransfer)}<br>${dueExtra > 0 ? '+' : '−'} ${inr(Math.abs(dueExtra))} for one-time expenses this month</span>` : ''}</div>
+          ${Math.abs(dueExtra) >= 1 ? `<span class="hero-split">Usual month ${inr(usualTransfer)}<br>${dueExtra > 0 ? '+' : '−'} ${inr(Math.abs(dueExtra))} one-time this month</span>` : ''}</div>
         </div>
         <span class="chip ${s.bufferOk ? 'good' : 'bad'}">${s.bufferOk ? `Buffer of ${inr(s.buffer)} met` : `Short ${inr(s.buffer - s.left)} for the ${inr(s.buffer)} buffer`}</span>
       </div>
@@ -2567,40 +2567,33 @@ function billsHtml() {
       </li>`;
   }).join('')}</ul>`;
 
-  /* Money needed in a month: monthly entries at full amount; each yearly or
-     quarterly bill due that month at its full amount instead of its monthly
-     share; every other yearly or quarterly bill at its monthly share, which is
-     still put aside that month. Entries without a due month count at their
-     monthly share. Set-aside entries are shown separately. */
+  /* Money needed in a month: what is transferred that month, by the same rule as Home
+     (monthAmountIn). Monthly entries in full; every yearly and quarterly bill at its monthly
+     share, including in its due month, because it is saved up and paid from what is saved;
+     a one-time expense in its month; set-aside entries at their monthly share. Bills due that
+     month are listed and noted as paid from savings, but not added again. */
   const live = S.data.entries.filter(e => S.data.accounts.some(a => a.id === e.account));
-  const monthlyEntries = live.filter(e => e.frequency === 'Monthly');
   const undated = live.filter(e => (e.frequency === 'Yearly' || e.frequency === 'Quarterly') && !dueMonths(e).length);
-  const shareOf = list => list.reduce((sum, e) => sum + monthlyEquivalent(e), 0);
-  // Savings and investments are shown on their own line, and still count in the total
   const isSaving = e => (S.data.sections.find(section => section.id === e.section) || {}).kind === 'savings';
-  const neededHtml = due => {
-    const notDue = dated.filter(e => !due.includes(e));
-    const expense = e => !e.setAside && !isSaving(e);
-    const saving = e => !e.setAside && isSaving(e);
-    const regular = sumOf(monthlyEntries.filter(expense));
-    const shares = shareOf(notDue.filter(expense));
-    const bills = sumOf(due.filter(e => expense(e) && !isOnce(e)));
-    const once = sumOf(due.filter(e => expense(e) && isOnce(e)));
-    const undatedShare = shareOf(undated.filter(expense));
-    const invest = sumOf(monthlyEntries.filter(saving)) + shareOf(notDue.filter(saving)) + sumOf(due.filter(saving)) + shareOf(undated.filter(saving));
-    const aside = sumOf(monthlyEntries.filter(e => e.setAside)) + shareOf(notDue.filter(e => e.setAside))
-      + sumOf(due.filter(e => e.setAside)) + shareOf(undated.filter(e => e.setAside));
-    const total = regular + shares + bills + once + undatedShare + invest;
+  const neededHtml = (due, m) => {
+    const part = test => live.filter(test).reduce((sum, e) => sum + monthAmountIn(e, m), 0);
+    const recurring = e => e.frequency === 'Yearly' || e.frequency === 'Quarterly';
+    const regular = part(e => !e.setAside && !isSaving(e) && e.frequency === 'Monthly');
+    const shares = part(e => !e.setAside && !isSaving(e) && recurring(e));
+    const once = part(e => !e.setAside && !isSaving(e) && isOnce(e));
+    const invest = part(e => !e.setAside && isSaving(e));
+    const aside = part(e => e.setAside);
+    const total = live.reduce((sum, e) => sum + monthAmountIn(e, m), 0);
+    const fromSaved = sumOf(due.filter(e => recurring(e) && !e.setAside));
     return { total, html: `<div class="need">
         <div class="need-title">Money needed this month</div>
         <div class="need-line"><span>Monthly expenses</span><span>${inr(regular)}</span></div>
-        <div class="need-line"><span>Monthly share for bills not due yet</span><span>${inr(shares)}</span></div>
-        <div class="need-line"><span>Bills due this month, in full</span><span>${inr(bills)}</span></div>
+        <div class="need-line"><span>Saving for yearly and quarterly bills, monthly share</span><span>${inr(shares)}</span></div>
         ${once ? `<div class="need-line"><span>One-time expenses</span><span>${inr(once)}</span></div>` : ''}
-        ${undatedShare ? `<div class="need-line"><span>Bills without a due month, monthly share</span><span>${inr(undatedShare)}</span></div>` : ''}
         <div class="need-line need-invest"><span>Savings and investments</span><span>${inr(invest)}</span></div>
-        <div class="need-total"><span>Total</span><strong>${inr(total)}</strong></div>
-        ${aside ? `<div class="need-aside"><span>Set aside, if needed</span><span>+ ${inr(aside)}</span></div>` : ''}
+        ${aside ? `<div class="need-line"><span>Set aside, monthly share</span><span>${inr(aside)}</span></div>` : ''}
+        <div class="need-total"><span>Total to transfer</span><strong>${inr(total)}</strong></div>
+        ${fromSaved ? `<div class="need-aside"><span>Bills due this month, paid from money already saved</span><span>${inr(fromSaved)}</span></div>` : ''}
       </div>` };
   };
 
@@ -2614,7 +2607,7 @@ function billsHtml() {
     const due = dated.filter(e => isDueIn(e, m));
     const bills = due.filter(e => !e.setAside);
     const aside = due.filter(e => e.setAside);
-    const needed = neededHtml(due);
+    const needed = neededHtml(due, m);
     const id = `due-${m.month}`;
     const isOpen = openByDefault !== S.open.has(id);
     const label = `${esc(m.label)}${i === 0 ? ' <span class="due-now">This month</span>' : i === 1 ? ' <span class="due-now">Next month</span>' : ''}`;
