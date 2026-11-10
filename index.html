@@ -898,7 +898,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.19.3';
+const APP_VERSION = '2.19.4';
 // Mini window: opened as index.html?mini, it shows only Today's target, in its own window,
 // so it stays open whatever happens to the main app's tab
 const MINI = new URLSearchParams(location.search).has('mini');
@@ -2186,7 +2186,7 @@ function hourlyHtml(m, readType) {
     byHour.set(start.getTime(), (byHour.get(start.getTime()) || 0) + (Number(reads) || 0));
   }
   if (!byHour.size) return '';
-  return `<div class="pip-hours" aria-label="Reads by hour today">${[...byHour].sort((a, b) => a[0] - b[0]).map(([start, reads]) =>
+  return `<div class="pip-hours" aria-label="Reads by hour today">${[...byHour].sort((a, b) => b[0] - a[0]).map(([start, reads]) =>
     `<div class="pip-hour"><span class="pip-hour-label">${hourRange(new Date(start).getHours())}</span><span>– <strong>${readsText(reads)}</strong></span></div>`).join('')}</div>`;
 }
 
