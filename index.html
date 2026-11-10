@@ -473,6 +473,12 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
 .pip-speed strong { color: var(--text); }
 .pip-version { position: absolute; right: 14px; bottom: -16px; font-size: .65rem; color: var(--muted); }
 .pip-add input { flex: 1; width: auto; min-height: 34px; font-size: .9rem; }
+.coin-btn { flex: none; width: 46px; height: 46px; margin: -6px 0 -6px 2px; border-radius: 50%; cursor: pointer; padding: 0;
+  font: 900 .68rem/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #7A4F08; letter-spacing: -.02em; text-shadow: 0 1px 0 rgba(255, 255, 255, .5);
+  border: 2px solid #B7791F; background: radial-gradient(circle at 32% 28%, #FFF6C8 0 12%, #FFD45E 38%, #E0A32E 72%, #A8700F 100%);
+  box-shadow: inset 0 0 0 3px rgba(255, 230, 150, .55), 0 2px 5px rgba(0, 0, 0, .3); transition: transform .12s; }
+.coin-btn:hover { transform: rotate(-8deg) scale(1.06); }
+.coin-btn:active { transform: scale(.88) rotateY(180deg); }
 .pip-add .btn { min-height: 34px; padding: 4px 14px; font-size: .9rem; }
 .mh-pop { font-size: .75rem; }
 .page-head:has(.day-ends) { flex-wrap: wrap; }
@@ -898,7 +904,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.19.4';
+const APP_VERSION = '2.20.0';
 // Mini window: opened as index.html?mini, it shows only Today's target, in its own window,
 // so it stays open whatever happens to the main app's tab
 const MINI = new URLSearchParams(location.search).has('mini');
@@ -2246,7 +2252,7 @@ function renderTodayBox(win, root, prevKey) {
   const value = `<div class="mh-value"><span class="pip-net">${inr(prev.net)}</span>${goal ? ` <span class="muted">of ${inr(target)}</span>` : ''}</div>`;
   const foot = `<span class="pip-version">v${esc(APP_VERSION)}</span>
       ${MINI ? '<a class="mini-full" href="./" target="_blank" rel="noopener">Open full app ↗</a>' : ''}
-      ${readType ? `<form class="mh-add pip-add" novalidate><input type="number" inputmode="numeric" min="1" step="1" placeholder="${esc(readType.name)} reads" aria-label="${esc(readType.name)} reads done now"><button class="btn primary">Add</button></form>` : ''}
+      ${readType ? `<form class="mh-add pip-add" novalidate><input type="number" inputmode="numeric" min="1" step="1" placeholder="${esc(readType.name)} reads" aria-label="${esc(readType.name)} reads done now"><button class="btn primary">Add</button><button type="button" class="coin-btn" title="Add 1 ${esc(readType.name)} read" aria-label="Add 1 ${esc(readType.name)} read, ${inr(afterTds(Number(readType.rate), readType.tds))}">${inr(afterTds(Number(readType.rate), readType.tds))}</button></form>` : ''}
       ${hourlyHtml(m, readType)}`;
   const catStyle = getPopupStyle() === 'cat';
   root.innerHTML = catStyle
@@ -2274,6 +2280,8 @@ function renderTodayBox(win, root, prevKey) {
     </div>`;
   const form = root.querySelector('form');
   if (form) form.addEventListener('submit', event => { event.preventDefault(); addQuickReads(form.querySelector('input')); });
+  const coinButton = form && form.querySelector('.coin-btn');
+  if (coinButton) coinButton.addEventListener('click', () => addQuickReads({ value: '1', focus() {} }));
   const still = win.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const fill = root.querySelector('.mh-fill');
   const jarFill = root.querySelector('.jar-fill');
