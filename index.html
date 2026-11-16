@@ -906,7 +906,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.21.1';
+const APP_VERSION = '2.21.2';
 // Mini window: opened as index.html?mini, it shows only Today's target, in its own window,
 // so it stays open whatever happens to the main app's tab
 const MINI = new URLSearchParams(location.search).has('mini');
@@ -2064,7 +2064,7 @@ async function popOutToday() {
   try {
     const win = await window.documentPictureInPicture.requestWindow({ width: 340, height: getPopupStyle() === 'cat' ? 370 : 300 });
     for (const style of document.querySelectorAll('style')) win.document.head.appendChild(style.cloneNode(true));
-    if (document.documentElement.dataset.theme) win.document.documentElement.dataset.theme = document.documentElement.dataset.theme;
+    win.document.documentElement.dataset.theme = 'dark';   // the small windows are always dark
     win.document.title = "Today's target";
     win.document.body.className = 'pip-body';
     win.document.body.innerHTML = '<div id="pip-root"></div>';
@@ -4213,6 +4213,7 @@ function handlePageChange(event) {
 function start() {
   if (MINI) {
     document.body.dataset.mini = '1';
+    document.documentElement.dataset.theme = 'dark';   // the small windows are always dark, like the floating one
     window.addEventListener('storage', event => { if (event.key === 'budgetPopupStyle' && S.data) { S.miniPrev = null; render(); } });
   }
   $('setup-form').addEventListener('submit', handleSetup);
