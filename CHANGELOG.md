@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.1
+
+- The floating and mini windows follow their width: drag them narrow or wide and the text, chips, buttons and coin resize to fit, and the jar stacks above the text when narrow.
+
 ## 2.0.0
 
 A fresh start: this is the first published version. It includes:
