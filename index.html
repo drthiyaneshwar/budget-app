@@ -479,6 +479,9 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
   box-shadow: inset 0 0 0 3px rgba(255, 230, 150, .55), 0 2px 5px rgba(0, 0, 0, .3); transition: transform .12s; }
 .coin-btn:hover { transform: rotate(-8deg) scale(1.06); }
 .coin-btn:active { transform: scale(.88) rotateY(180deg); }
+.pip-value-row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; }
+.pip-pay { font-size: clamp(.75rem, 4cqw, 1.2rem); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pip-pay strong { color: var(--good); }
 .pip-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 2px; }
 .mh-sets.ms { background: var(--warn-bg); color: var(--warn); }
 .pip-add .btn { min-height: 34px; padding: 4px 14px; font-size: .9rem; }
@@ -935,7 +938,7 @@ dialog h3 { margin-bottom: 12px; }
 <script>
 'use strict';
 
-const APP_VERSION = '2.0.1';
+const APP_VERSION = '2.0.2';
 // Mini window: opened as index.html?mini, it shows only Today's target, in its own window,
 // so it stays open whatever happens to the main app's tab
 const MINI = new URLSearchParams(location.search).has('mini');
@@ -2289,7 +2292,12 @@ function renderTodayBox(win, root, prevKey) {
   }).filter(step => step.done < step.size);
   const head = `<div class="mh-label">Today's target</div>
       <div class="pip-chips"><span class="mh-sets${sets >= READ_SETS_IDEAL ? ' done' : ''}${sets > prev.sets ? ' pop' : ''}">${sets}/${READ_SETS_IDEAL} sets</span>${steps.map(step => `<span class="mh-sets ms">${step.done.toLocaleString('en-IN')}/${step.size.toLocaleString('en-IN')}</span>`).join('')}</div>`;
-  const value = `<div class="mh-value"><span class="pip-net">${inr(prev.net)}</span>${goal ? ` <span class="muted">of ${inr(target)}</span>` : ''}</div>`;
+  // Beside it: the whole income expected in the month today's daily-target reads are paid in, monthly
+  // income plus the extra-work money arriving then (the same total as Home's expected income for that month)
+  const payKey = readType ? addMonths(monthKey(workDate()), Number(readType.delay) || 0) : '';
+  const payShort = payKey ? new Intl.DateTimeFormat('en-IN', { month: 'short' }).format(new Date(payKey + '-01T00:00:00')) : '';
+  const value = `<div class="pip-value-row"><div class="mh-value"><span class="pip-net">${inr(prev.net)}</span>${goal ? ` <span class="muted">of ${inr(target)}</span>` : ''}</div>${payKey
+    ? `<div class="pip-pay" title="Expected income in ${esc(monthLabel(payKey))}: monthly income plus extra work paid then">${esc(payShort)} = <strong>${inr((Number(S.data.settings.income) || 0) + earningsPaidIn(payKey))}</strong></div>` : ''}</div>`;
   const foot = `<span class="pip-version">v${esc(APP_VERSION)}</span>
       ${MINI ? '<a class="mini-full" href="./" target="_blank" rel="noopener">Open full app ↗</a>' : ''}
       ${readType ? `<form class="mh-add pip-add" novalidate><input type="number" inputmode="numeric" min="1" step="1" placeholder="${esc(readType.name)} reads" aria-label="${esc(readType.name)} reads done now"><button class="btn primary">Add</button><button type="button" class="coin-btn" title="Add 1 ${esc(readType.name)} read" aria-label="Add 1 ${esc(readType.name)} read, ${inr(afterTds(Number(readType.rate), readType.tds))}">${inr(afterTds(Number(readType.rate), readType.tds))}</button></form>` : ''}
